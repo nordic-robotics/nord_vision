@@ -11,11 +11,14 @@ from matplotlib import pyplot
 from time import time
 import numpy.random as rnd
 import cPickle
+from std_msgs.msg import String
 
 class ObjectDetector:
     def __init__(self):
         self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw",Image,self.callback)
+        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.callback)
+        self.speaker_pub = rospy.Publisher("/espeak/string", String, queue_size=20)
+        self.timeOfLastExecution = 0
 
                   #'src/nord/nord_vision/data/pixel_hue_sat'
         with open('src/nord/nord_vision/data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl', 'rb') as fid:
@@ -24,18 +27,18 @@ class ObjectDetector:
             # This should not be hardcoed like this.
             self.classAssignments = {1:"Something yellow",
                                      2:"Something red",
-                                     3:"Something pruple",
+                                     3:"Soisoisoisoisoisoisoisoisoisoi",
                                      4:"Something orange, could also be red",
                                      5:"Something blue",
                                      6:"Something blue",
-                                     7:"Green wooden cube",
+                                     7:"Green wooden cube!",
                                      8:"Something light green"}
 
         # Setup SimpleBlobDetector parameters.
         self.params = cv2.SimpleBlobDetector_Params()
  
         #Create trackbars for some parameters
-        cv2.namedWindow('keypoints')
+        cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
         cv2.namedWindow('bars')
         cv2.createTrackbar('draw_hist','bars', 0, 1, self.nothing)
         
@@ -107,6 +110,7 @@ class ObjectDetector:
         for i in range(0,len(keypoints)):
             point = keypoints[i]
             size = point.size*0.7
+            
             minc = int(max(0,point.pt[0] - size))
             maxc = int(min(640,minc + 2*size))
             minr = int(max(0,point.pt[1] - size))
@@ -117,12 +121,12 @@ class ObjectDetector:
             hue = hsv_im_point[:,:,0]
             satur = hsv_im_point[:,:,1]
             
-            cv2.imshow(str(i), im_point)
+            #cv2.imshow(str(i), im_point)
             
             hue = hsv_im_point[:,:,0].flatten()
             sat = hsv_im_point[:,:,1].flatten()
             
-            sampleIdx = rnd.choice(len(hue), len(hue)/10)
+            sampleIdx = rnd.choice(len(hue), 30)
             data = np.transpose( np.array( [hue[sampleIdx], sat[sampleIdx]] ) )
             guessed_class = self.classifier.predict(data)
             counts = np.bincount(map(int,guessed_class))
@@ -137,6 +141,11 @@ class ObjectDetector:
             rgb_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError, e:
             print e
+            
+        d = time() - self.timeOfLastExecution
+        
+#        print d
+        
         rgb_image = cv2.GaussianBlur(rgb_image, (7,7), 1)
         rgb_image[400:,200:520,:] = 0
 
@@ -163,18 +172,25 @@ class ObjectDetector:
                                               np.array([]), 
                                               (0,255,0), 
                                               cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
+        
         cv2.imshow("keypoints", im_with_keypoints)
-
+        cv2.waitKey(3)    
+        if d < 5:
+            print "returned, "
+            return
+        self.timeOfLastExecution = time()
+        
         # This function should be broken up, as it does more than classify, it also extracts features.
-        guesses = self.classify( keypoints, rgb_image, hsv_image )
+        guesses = self.classify( rgb_keypoints, rgb_image, hsv_image )
 
         counter = 1
         for guess in guesses:
+            self.speaker_pub.publish(self.classAssignments[guess])
             print "Object {} is {}".format(counter,self.classAssignments[guess])
             counter+=1
 
-        cv2.waitKey(3)    
+        
+
             
 def main(args):
 
