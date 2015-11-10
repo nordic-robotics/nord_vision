@@ -24,11 +24,10 @@ class ImageObjectFilter:
         self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.storeBlobs, queue_size = 1)
         self.pcl_CoordinateArray_sub = rospy.Subscriber("/coord", CoordinateArray, self.storeCentroids, queue_size = 1)
         self.ugo_CoordinateArray_pub = rospy.Publisher("/UGO", CoordinateArray, queue_size=20)
-        # self.depth_image_sub = rospy.Subscriber("/camera/depth/image_raw",Image,self.displayDepth, queue_size = 1)
-        # cv2.namedWindow('depth',cv2.WINDOW_NORMAL)
 
-        self.blobs = np.array([])
-        self.centroidsArray = np.array([])
+        self.blobs = []
+        self.centroidsArray = CoordinateArray()
+        
         self.keypoints=[]
         self.minDistToConnect = 10   # in pixels
         self.LOCKED = False
@@ -106,7 +105,7 @@ class ImageObjectFilter:
         
         if self.LOCKED:
             return
-        print "store blobs called"
+        print "store blobs called" 
         try:
             rgb_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError, e:
@@ -148,26 +147,6 @@ class ImageObjectFilter:
         cv2.imshow("keypoints", im_with_keypoints)
         cv2.waitKey(3)
 
-    # def displayDepth(self,data):
-    #     depth_image=0
-    #     try:
-    #         depth_image = self.bridge.imgmsg_to_cv2(data, "16UC1")
-
-    #     except CvBridgeError, e:
-    #         print e
-
-    #     depth_image[depth_image < 300] = 60001
-    #     depth_image = np.uint8(depth_image/(2.**8))
-    #     depth_image = cv2.GaussianBlur(depth_image, (7,7), 1)
-        
-    #     detector = cv2.SimpleBlobDetector( self.params )
-    #     self.keypoints = detector.detect( -depth_image )
-        
-    #     print "keypoints: {}".format(len(self.keypoints))
-
-    #     cv2.imshow("depth", depth_image)
-    #     cv2.waitKey(3)
-
     def storeCentroids(self, data ):
         """Records the centroids from the pointcloud"""
     
@@ -202,7 +181,7 @@ class ImageObjectFilter:
         self.ugo_CoordinateArray_pub.publish( self.centroidsArray )
 
         self.centroidsArray = CoordinateArray()
-        self.blobs = np.array([])
+        self.blobs = []
         self.LOCKED = False
 
 
