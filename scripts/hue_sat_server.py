@@ -15,7 +15,7 @@ bridge = CvBridge()
 LOCK = False
 # waitForImage = False
 
-def callback(data):
+def saveImage(data):
     """Saves the image to be used as input to detection and classification"""
     global waitForImage, LOCK
     # if not waitForImage:
@@ -57,9 +57,10 @@ def handle_hue_sat(req):
 
 
 def hue_sat_server():
-    rospy.init_node('hue_sat_server')
-    image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, callback, queue_size = 1)
-    s = rospy.Service('hue_sat', HueSat, handle_hue_sat)
+    rospy.init_node('/nord/vision/classification_server')
+    image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, saveImage, queue_size = 1)
+    #object_sub = rospy.Subscriber("/nord/vision/ugo", XXX, saveObjects, queue_size = 1)
+    s = rospy.Service('/nord/vision/classification_service', HueSat, handle_hue_sat)
     print "Ready to classify hues and sats."
     rospy.spin()
 
