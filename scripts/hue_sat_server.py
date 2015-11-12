@@ -6,61 +6,45 @@ from HueSatClass import HueSatClass
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import rospy
+import numpy as np
 
 
 # global hack variables
 classifier = HueSatClass()
-rgb_image = None
-bridge = CvBridge()
-LOCK = False
-# waitForImage = False
 
-def saveImage(data):
-    """Saves the image to be used as input to detection and classification"""
-    global waitForImage, LOCK
-    # if not waitForImage:
-    #     return
-    if LOCK:
-        return
-    try:
-        rgb_image = bridge.imgmsg_to_cv2(data, "bgr8")
-        waitForImage = False
-        LOCK = True
-    except CvBridgeError, e:
-        print e
+def createClassificationMsg(obj, prediction):
+    """Name tells the whole story"""
+    c = Classification()
+    c.loc.x = obj.x
+    c.loc.y = obj.y
+    c.name.data = prediction
+    return c
 
 def handle_hue_sat(req):
     """Makes a method call to the object detector and classifier on the image returned from the camera"""
-    global waitForImage, LOCK
-    # waitForImage = True
-    # while waitForImage:
-    #     continue
     print "Returning classes"
-    LOCK = True
-    #detected = classifier.classify( rgb_image )
+    global classifier
 
-    # FIND REAL RELATIVE COORDINATES ON THE PLANE
-
-    # PROCESS DETECTED INTO A LIST OF MESSAGES
+    objects = req.centroids.data
+    nrObjects = len(objects)
     classifications = ClassificationArray()
-    ##### DUMMY RETURN VALUE
-    c = Classification()
-    c.loc.x = 0.5
-    c.loc.y = 0.5
-    c.name.data = "green cube"
-    classifications.data.append( c )
-    ######
+    
+    # reformat the feature list into 2d array for each object
+    objectFeatures = [ np.array(obj.feature).reshape(2,obj.splits[0]) for obj in objects ]
 
-    LOCK = False
+    # classify each object
+    predictions = [ classifier.classify( features ) for features in objectFeatures ]
+
+    # Assemble classification messages
+    classification.data = [ createClassificationMsg(objects[i],predictions[i]) for i in range(nrObjects) ]
+
     return HueSatResponse( classifications )
 
 
 
 def hue_sat_server():
     rospy.init_node('/nord/vision/classification_server')
-    image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, saveImage, queue_size = 1)
-    #object_sub = rospy.Subscriber("/nord/vision/ugo", XXX, saveObjects, queue_size = 1)
-    s = rospy.Service('/nord/vision/classification_service', HueSat, handle_hue_sat)
+    s = rospy.Service('/nord/vision/classification_service', ClassificationSrv, handle_hue_sat)
     print "Ready to classify hues and sats."
     rospy.spin()
 
