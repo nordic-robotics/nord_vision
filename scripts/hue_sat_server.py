@@ -21,7 +21,7 @@ def createClassificationMsg(obj, prediction):
     return c
 
 def handle_hue_sat(req):
-    """Makes a method call to the object detector and classifier on the image returned from the camera"""
+    """Makes a method call to the object detector and classifier a"""
     print "Returning classes"
     global classifier
 
@@ -39,8 +39,6 @@ def handle_hue_sat(req):
     classification.data = [ createClassificationMsg(objects[i],predictions[i]) for i in range(nrObjects) ]
 
     return HueSatResponse( classifications )
-
-
 
 def hue_sat_server():
     rospy.init_node('/nord/vision/classification_server')
