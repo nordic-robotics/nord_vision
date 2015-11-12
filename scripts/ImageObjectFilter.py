@@ -114,7 +114,7 @@ class ImageObjectFilter:
         
         if self.LOCKED:
             return
-        print "store blobs called" 
+        #print "store blobs called" 
         try:
             #self.rgbData = data
             self.rgb_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -148,7 +148,8 @@ class ImageObjectFilter:
         # Detect oobjects in rgb and hsv
         rgb_keypoints = detector.detect( rgb_image )
         hsv_keypoints = detector.detect( hsv_inv )
-        self.blobs = rgb_keypoints + hsv_keypoints
+        #self.blobs = rgb_keypoints + hsv_keypoints
+        self.blobs = hsv_keypoints
         # im_with_keypoints = cv2.drawKeypoints(rgb_image, 
         #                                       rgb_keypoints, 
         #                                       np.array([]), 
@@ -167,7 +168,7 @@ class ImageObjectFilter:
     
         if self.LOCKED:
             return
-        print "store centroids called"
+        #print "store centroids called"
         try:
             self.centroidsArray = data
         except e:
@@ -251,9 +252,11 @@ class ImageObjectFilter:
                     objectArray.data[closest].hull  = self.centroidsArray.data[i].hull
 
 
-        for o in objectArray.data:
-            print o.VFH
+        # for o in objectArray.data:
+        #     print type(o.feature)
+        #     print o.feature
         # publish the filtered objects
+
         self.ugo_CoordinateArray_pub.publish( objectArray )
 
         self.centroidsArray = CoordinateArray()
