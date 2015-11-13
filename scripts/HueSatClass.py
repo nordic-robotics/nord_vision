@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+import os
 import rospy
 import cv2
 import numpy as np
@@ -12,11 +13,15 @@ from time import time
 import numpy.random as rnd
 import cPickle
 from std_msgs.msg import String
-
+import rospkg
 
 class HueSatClass:
     def __init__(self):
-        with open('../data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl', 'rb') as fid:
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('nord_vision')
+        print path
+
+        with open(os.path.join(path,'data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl'), 'rb') as fid:
             self.classifier = cPickle.load(fid)
 
             # This should not be hardcoed like this.
