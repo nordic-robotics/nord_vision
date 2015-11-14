@@ -3,12 +3,13 @@
 import sys
 import rospy
 from nord_messages.srv import *
+import numpy as np
 
 def hue_sat_client():
     """makes a request to the service"""
-    rospy.wait_for_service('hue_sat')
+    rospy.wait_for_service('/nord/vision/classification_service')
     try:
-        hue_sat = rospy.ServiceProxy('hue_sat', HueSat)
+        hue_sat = rospy.ServiceProxy('/nord/vision/classification_service', ClassificationSrv)
         classifications = hue_sat()
         return classifications
     except rospy.ServiceException, e:

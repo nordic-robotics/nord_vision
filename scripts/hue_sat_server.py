@@ -41,7 +41,7 @@ def handle_hue_sat(req):
     return HueSatResponse( classifications )
 
 def hue_sat_server():
-    rospy.init_node('/nord/vision/classification_server')
+    rospy.init_node('color_classification_server')
     s = rospy.Service('/nord/vision/classification_service', ClassificationSrv, handle_hue_sat)
     print "Ready to classify hues and sats."
     rospy.spin()
