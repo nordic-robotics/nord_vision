@@ -137,9 +137,9 @@ class ImageObjectFilter:
         hsv_inv = -hsv_image
 
         # Detect oobjects in rgb and hsv
-        rgb_keypoints = detector.detect( rgb_image )
+        # rgb_keypoints = detector.detect( rgb_image )
         hsv_keypoints = detector.detect( hsv_inv )
-        #self.blobs = rgb_keypoints + hsv_keypoints
+        # self.blobs = rgb_keypoints + hsv_keypoints
         blobs = hsv_keypoints
         # im_with_keypoints = cv2.drawKeypoints(rgb_image, 
         #                                       rgb_keypoints, 
