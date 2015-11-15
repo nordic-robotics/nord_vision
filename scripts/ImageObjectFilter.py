@@ -16,6 +16,7 @@ import scipy as sp
 from scipy.spatial.distance import cdist
 import rospkg
 import os
+import message_filters
 
 from nord_messages.msg import CoordinateArray, Coordinate
 
@@ -23,20 +24,15 @@ class ImageObjectFilter:
     def __init__(self):
         self.bridge = CvBridge()
         
-        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.storeBlobs, queue_size = 1)
-        self.pcl_CoordinateArray_sub = rospy.Subscriber("/nord/pointcloud/centroids", CoordinateArray, self.storeCentroids, queue_size = 1)
+        self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
+        self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
+
+        self.synchronizer = message_filters.TimeSynchronizer([self.image_sub, self.pcl_CoordinateArray_sub], 10)
+        self.synchronizer.registerCallback(self.detectAndFilter)
         
         self.ugo_CoordinateArray_pub = rospy.Publisher("/nord/vision/ugo", CoordinateArray, queue_size=20)
 
-        self.blobs = []
-        self.centroidsArray = CoordinateArray()
-
-        self.rgbData = None
-        self.keypoints=[]
         self.minDistToConnect = 10   # in pixels
-        self.LOCKED = False
-        self.rgb_image = None
-        self.hsv_image = None
         self.boundingBoxScale = 0.7
         
         self.nrSamples = 30
@@ -44,8 +40,6 @@ class ImageObjectFilter:
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
         self.calibrationAngle, self.calibrationHeight = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
-        # self.calibrationAngle = np.pi/4
-        # self.calibrationHeight = 0.24
 
         # Setup SimpleBlobDetector parameters.
         self.params = cv2.SimpleBlobDetector_Params()
@@ -117,22 +111,10 @@ class ImageObjectFilter:
         # Distance
         self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
-    def storeBlobs(self, data):
-        """Detects blobs and records them for comparison to the centroids"""
-        
-        if self.LOCKED:
-            return
-        #print "store blobs called" 
-        try:
-            #self.rgbData = data
-            self.rgb_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError, e:
-            print e
-    
+    def detectBlobs(self,rgb_image):
+        """Uses simple blob detector on a smoothed rgb_image, crops away the base of the robot.
+        Also draws and displays detected blobs if not commented."""
         rgb_image = cv2.GaussianBlur(self.rgb_image, (7,7), 1)
-        
-
-        self.hsv_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2HSV)
         hsv_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2HSV)
 
         sat = cv2.getTrackbarPos('sat','bars')
@@ -142,6 +124,7 @@ class ImageObjectFilter:
         #rgb_image[idx] = 65000
         #hsv_image[satIdx[:,0], satIdx[:,1], :] = 65000
         #hsv_image[idx] = 65000
+
         hsv_image[400:,200:520,:] = 0
         rgb_image[400:,200:520,:] = 0
         # update parameters
@@ -157,7 +140,7 @@ class ImageObjectFilter:
         rgb_keypoints = detector.detect( rgb_image )
         hsv_keypoints = detector.detect( hsv_inv )
         #self.blobs = rgb_keypoints + hsv_keypoints
-        self.blobs = hsv_keypoints
+        blobs = hsv_keypoints
         # im_with_keypoints = cv2.drawKeypoints(rgb_image, 
         #                                       rgb_keypoints, 
         #                                       np.array([]), 
@@ -168,19 +151,56 @@ class ImageObjectFilter:
                                               np.array([]), 
                                               (255,0,0), 
                                               cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
         cv2.imshow("keypoints", im_with_keypoints)
         cv2.waitKey(3)
 
-    def storeCentroids(self, data ):
-        """Records the centroids from the pointcloud"""
-    
-        if self.LOCKED:
-            return
-        #print "store centroids called"
+        return blobs
+
+    def detectAndFilter(self, image, centroidsMessage):
+        """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
+        features from both pcl and image."""
         try:
-            self.centroidsArray = data
-        except e:
+            centroidsArray = centroidsMessage
+            rgb_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        except CvBridgeError, e:
             print e
+
+        # detect blobs
+        blobs = detectBlobs(rgb_image)
+
+        nrCentroids = len(self.centroidsArray.data)
+        nrBlobs = len(blobs)
+        if nrBlobs == 0:
+            return
+
+        objectArray = CoordinateArray()
+        objectArray.header = centroidsArray.header
+        
+        # Find color objects and their features
+        boundingBoxes = [ self.getBoundingBox(blob, rgb_image, self.boundingBoxScale) for blob in blobs ]
+        features = [ self.extractColorFeature(box) for box in boundingBoxes ]
+        relativeCoordinates = [ self.estimateRelativeCoordinates( blob ) for blob in blobs ]
+        objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
+
+        # reformat the data as arrays
+        centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in self.centroidsArray.data ] )
+        blobs =     np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in self.blobs ] )
+
+        # If a centroid lies within a blob we regard it as an object and filter debris away
+        if nrCentroids > 0:
+            dists = cdist( centroids[:,3:],  blobs[:,:2] , 'euclidean')
+            closestInd = np.argmin( dists, 1 )
+            connected = dists[ range(nrCentroids), closestInd ] < blobs[ closestInd, 2 ]
+            centroidsArray.data = [ centroidsArray.data[ idx ] for idx in range(nrCentroids) if connected[idx] ]
+
+            for i,c in enumerate(list(connected)):
+                if c:
+                    closest = closestInd[i]
+                    objectArray.data[closest].VFH = centroidsArray.data[i].VFH
+                    objectArray.data[closest].hull = centroidsArray.data[i].hull
+
+        self.ugo_CoordinateArray_pub.publish( objectArray )
 
     def getBoundingBox(self, point, image, scale = 1.0):
         """Crops the image around point with a scaled size"""
@@ -244,59 +264,6 @@ class ImageObjectFilter:
         c.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
         c.splits = [len(c.feature)/2] # length will never be odd
         return c
-
-
-    def detect(self):
-        """Compares blobs to centroids.  Centroids that do not correspond to a blob will 
-        be considered debris.  While it is doing this it locks the callback functions from doing their job."""
-
-        nrCentroids = len(self.centroidsArray.data)
-        nrBlobs = len(self.blobs)
-        if len(self.blobs) == 0:
-            return
-
-        self.LOCKED = True
-
-        objectArray = CoordinateArray()
-        objectArray.stamp = self.centroidsArray.stamp
-        
-        # Find color objects and their features
-
-        boundingBoxes = [ self.getBoundingBox(blob, self.rgb_image, self.boundingBoxScale) for blob in self.blobs ]
-        features = [ self.extractColorFeature(box) for box in boundingBoxes ]
-        relativeCoordinates = [ self.estimateRelativeCoordinates( blob ) for blob in self.blobs ]
-        objectArray.data = [ self.createCoordinate( self.blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
-
-        # reformat the data as arrays
-        centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in self.centroidsArray.data ] )
-        blobs =     np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in self.blobs ] )
-
-        # If a centroid lies within a blob we regard it as an object and filter debris away
-        if nrCentroids > 0:
-            dists = cdist( centroids[:,3:],  blobs[:,:2] , 'euclidean')
-            closestInd = np.argmin( dists, 1 )
-            connected = dists[ range(nrCentroids), closestInd ] < blobs[ closestInd, 2 ]
-            self.centroidsArray.data = [ self.centroidsArray.data[ idx ] for idx in range(nrCentroids) if connected[idx] ]
-
-            for i,c in enumerate(list(connected)):
-                if c:
-                    closest = closestInd[i]
-                    objectArray.data[closest].VFH = self.centroidsArray.data[i].VFH
-                    objectArray.data[closest].hull  = self.centroidsArray.data[i].hull
-
-
-        # for o in objectArray.data:
-        #     print type(o.feature)
-        #     print o.feature
-        # publish the filtered objects
-
-        self.ugo_CoordinateArray_pub.publish( objectArray )
-
-        self.centroidsArray = CoordinateArray()
-        self.blobs = []
-        self.LOCKED = False
-
-
                 
 def main(args):
 
@@ -307,9 +274,7 @@ def main(args):
     rate = rospy.Rate(30)
 
     try:
-        while not rospy.is_shutdown():
-            detector.detect()
-            rate.sleep()
+        rospy.spin()
     except KeyboardInterrupt:
         print "Shutting down"
 
