@@ -44,7 +44,8 @@ class ImageObjectFilter:
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
         self.calibrationAngle, self.calibrationHeight = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
-
+        # self.calibrationAngle = np.pi/4
+        # self.calibrationHeight = 0.24
 
         # Setup SimpleBlobDetector parameters.
         self.params = cv2.SimpleBlobDetector_Params()
@@ -76,7 +77,7 @@ class ImageObjectFilter:
         cv2.createTrackbar('maxInertia','bars', 1000, 10000, self.nothing)        
         
         # Distance
-        cv2.createTrackbar('minDistance','bars', 10, 255, self.nothing)
+        cv2.createTrackbar('minDistance','bars', 42, 255, self.nothing)
 
         cv2.createTrackbar('sat','bars', 40, 255, self.nothing)
         self.getParams()
@@ -144,7 +145,7 @@ class ImageObjectFilter:
         hsv_image[400:,200:520,:] = 0
         rgb_image[400:,200:520,:] = 0
         # update parameters
-        #self.getParams()
+        self.getParams()
         
 
         detector = cv2.SimpleBlobDetector( self.params )
@@ -212,16 +213,23 @@ class ImageObjectFilter:
         return np.arccos(b), height
 
     def estimateRelativeCoordinates(self, blob):
-        """ Returns an estimate of relative coordinates of a blob """
+        """ Returns an estimate of relative coordinates (X,Y) of a blob from it's
+         image coordinates (x,y).  X is along the face of the robot, Y to the sides."""
         x = blob.pt[0]
         y = blob.pt[1]
-        xAngle = (np.pi/6) * (x - 320) / 320
-        yAngle = (np.pi/4) * (y - 240) / 240
-        theta = np.pi - self.calibrationAngle + yAngle
-        a = np.tan(theta) * self.calibrationHeight
-        b = a * np.tan(xAngle)  
 
-        return [ a, b ]
+        # Angles relative to the camera orientation
+        xAngle = (np.pi/6) * (x - 320) / 320
+        yAngle = -(np.pi/8) * (y - 240) / 240
+
+        # The angle, the ground/camera/object form with Y kept at zero
+        theta = np.pi/2 - self.calibrationAngle + yAngle
+        
+        # The actual X and Y relative coordinates
+        X = np.tan(theta) * self.calibrationHeight
+        Y = X * np.tan(xAngle)  
+
+        return [ X, Y ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):
         """Assemblers a Coordinate message"""
