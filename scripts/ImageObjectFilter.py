@@ -14,6 +14,8 @@ import cPickle
 from std_msgs.msg import String
 import scipy as sp
 from scipy.spatial.distance import cdist
+import rospkg
+import os
 
 from nord_messages.msg import CoordinateArray, Coordinate
 
@@ -36,8 +38,13 @@ class ImageObjectFilter:
         self.rgb_image = None
         self.hsv_image = None
         self.boundingBoxScale = 0.7
-        self.calibrationAngle = 'XX'
+        
         self.nrSamples = 30
+
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('nord_vision')
+        self.calibrationAngle, self.calibrationHeight = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
+
 
         # Setup SimpleBlobDetector parameters.
         self.params = cv2.SimpleBlobDetector_Params()
@@ -107,7 +114,7 @@ class ImageObjectFilter:
         #self.params.maxInertiaRatio = cv2.getTrackbarPos('maxIertia','bars')/100.
 
         # Distance
-        self.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
+        self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
     def storeBlobs(self, data):
         """Detects blobs and records them for comparison to the centroids"""
@@ -155,13 +162,13 @@ class ImageObjectFilter:
         #                                       np.array([]), 
         #                                       (0,255,0), 
         #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # im_with_keypoints = cv2.drawKeypoints(rgb_image, 
-        #                                       hsv_keypoints, 
-        #                                       np.array([]), 
-        #                                       (255,0,0), 
-        #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        # cv2.imshow("keypoints", im_with_keypoints)
-        # cv2.waitKey(3)
+        im_with_keypoints = cv2.drawKeypoints(rgb_image, 
+                                              hsv_keypoints, 
+                                              np.array([]), 
+                                              (255,0,0), 
+                                              cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        cv2.imshow("keypoints", im_with_keypoints)
+        cv2.waitKey(3)
 
     def storeCentroids(self, data ):
         """Records the centroids from the pointcloud"""
@@ -192,11 +199,29 @@ class ImageObjectFilter:
         S = [[s[0] ,0],[0, s[1]]]
         feature = np.random.multivariate_normal(mu, S, self.nrSamples )
         return feature.astype(int)
-        
+
+    def readCalibration(self, calibrationFile):
+        """Reads the calibration file and calculates the tilt angle of the camera"""
+        b = None
+        height = None
+        with open(calibrationFile,'rb') as f:
+            lines = f.readlines()
+            b = float(lines[1]) # the second line contains the b value
+            height = float(lines[3])
+
+        return np.arccos(b), height
 
     def estimateRelativeCoordinates(self, blob):
-        """ Returns always 0.5m """
-        return [ 0.5, 0 ]
+        """ Returns an estimate of relative coordinates of a blob """
+        x = blob.pt[0]
+        y = blob.pt[1]
+        xAngle = (np.pi/6) * (x - 320) / 320
+        yAngle = (np.pi/4) * (y - 240) / 240
+        theta = np.pi - self.calibrationAngle + yAngle
+        a = np.tan(theta) * self.calibrationHeight
+        b = a * np.tan(xAngle)  
+
+        return [ a, b ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):
         """Assemblers a Coordinate message"""
