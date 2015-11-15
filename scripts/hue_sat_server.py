@@ -26,19 +26,25 @@ def handle_hue_sat(req):
     global classifier
 
     objects = req.centroids.data
+    print objects
+    print "handled request data"
     nrObjects = len(objects)
     classifications = ClassificationArray()
-    
+    print "get object features"
+
     # reformat the feature list into 2d array for each object
     objectFeatures = [ np.array(obj.feature).reshape(2,obj.splits[0]) for obj in objects ]
-
+    print "get predictions"
     # classify each object
-    predictions = [ classifier.classify( features ) for features in objectFeatures ]
-
+    for f in objectFeatures:
+        print f
+        print type(f)
+    predictions = [ classifier.classify( np.transpose(features) ) for features in objectFeatures ]
+    print "create message"
     # Assemble classification messages
-    classification.data = [ createClassificationMsg(objects[i],predictions[i]) for i in range(nrObjects) ]
+    classifications.data = [ createClassificationMsg(objects[i],predictions[i]) for i in range(nrObjects) ]
 
-    return HueSatResponse( classifications )
+    return ClassificationSrvResponse( classifications )
 
 def hue_sat_server():
     rospy.init_node('color_classification_server')

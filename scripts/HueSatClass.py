@@ -19,7 +19,6 @@ class HueSatClass:
     def __init__(self):
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
-        print path
 
         with open(os.path.join(path,'data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl'), 'rb') as fid:
             self.classifier = cPickle.load(fid)
@@ -37,8 +36,16 @@ class HueSatClass:
     def classify(self,features):
         """classifies each feature vector in features.
         A mojority vote decides the final classification of the object."""
-
-        return self.classifier.predict(features)
+        
+        votes = self.classifier.predict(features)
+        
+        voteCounts = np.bincount(map(int,votes))
+        
+        majorityVote = np.argmax(voteCounts)
+        
+        voteLabel = self.classAssignments[majorityVote]
+        
+        return voteLabel
       
 
 
