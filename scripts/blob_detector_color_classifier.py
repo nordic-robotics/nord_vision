@@ -12,6 +12,8 @@ from time import time
 import numpy.random as rnd
 import cPickle
 from std_msgs.msg import String
+import rospkg
+import os
 
 class ObjectDetector:
     def __init__(self):
@@ -20,8 +22,10 @@ class ObjectDetector:
         self.speaker_pub = rospy.Publisher("/espeak/string", String, queue_size=20)
         self.timeOfLastExecution = 0
 
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('nord_vision')
                   #'src/nord/nord_vision/data/pixel_hue_sat'
-        with open('src/nord/nord_vision/data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl', 'rb') as fid:
+        with open(os.path.join(path,'data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl'), 'rb') as fid:
             self.classifier = cPickle.load(fid)
 
             # This should not be hardcoed like this.

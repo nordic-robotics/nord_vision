@@ -27,7 +27,7 @@ class ImageObjectFilter:
         self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
         self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
 
-        self.synchronizer = message_filters.TimeSynchronizer([self.image_sub, self.pcl_CoordinateArray_sub], 10)
+        self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.pcl_CoordinateArray_sub], queue_size = 100, slop = 0.5)
         self.synchronizer.registerCallback(self.detectAndFilter)
         
         self.ugo_CoordinateArray_pub = rospy.Publisher("/nord/vision/ugo", CoordinateArray, queue_size=20)
@@ -114,7 +114,7 @@ class ImageObjectFilter:
     def detectBlobs(self,rgb_image):
         """Uses simple blob detector on a smoothed rgb_image, crops away the base of the robot.
         Also draws and displays detected blobs if not commented."""
-        rgb_image = cv2.GaussianBlur(self.rgb_image, (7,7), 1)
+        rgb_image = cv2.GaussianBlur(rgb_image, (7,7), 1)
         hsv_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2HSV)
 
         sat = cv2.getTrackbarPos('sat','bars')
@@ -160,16 +160,17 @@ class ImageObjectFilter:
     def detectAndFilter(self, image, centroidsMessage):
         """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
         features from both pcl and image."""
+        print "ran"
         try:
             centroidsArray = centroidsMessage
-            rgb_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
         except CvBridgeError, e:
             print e
 
         # detect blobs
-        blobs = detectBlobs(rgb_image)
+        blobs = self.detectBlobs(rgb_image)
 
-        nrCentroids = len(self.centroidsArray.data)
+        nrCentroids = len(centroidsMessage.data)
         nrBlobs = len(blobs)
         if nrBlobs == 0:
             return
@@ -184,8 +185,8 @@ class ImageObjectFilter:
         objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
 
         # reformat the data as arrays
-        centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in self.centroidsArray.data ] )
-        blobs =     np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in self.blobs ] )
+        centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in centroidsArray.data ] )
+        blobs =     np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in blobs ] )
 
         # If a centroid lies within a blob we regard it as an object and filter debris away
         if nrCentroids > 0:
