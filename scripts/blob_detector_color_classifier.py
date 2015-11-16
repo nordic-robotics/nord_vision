@@ -64,7 +64,7 @@ class ObjectDetector:
         cv2.createTrackbar('maxInertia','bars', 1000, 10000, self.nothing)        
         
         # Distance
-        cv2.createTrackbar('minDistance','bars', 10, 255, self.nothing)
+        cv2.createTrackbar('minDistance','bars', 40, 255, self.nothing)
 
         cv2.createTrackbar('sat','bars', 0, 255, self.nothing)
 
@@ -101,7 +101,7 @@ class ObjectDetector:
         #self.params.maxInertiaRatio = cv2.getTrackbarPos('maxIertia','bars')/100.
 
         # Distance
-        self.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
+        self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
     def classify(self,keypoints, rgb_image, hsv_image):
         """Assigns a class to each keypoint by sampling indices from the keypoint's bounding box and assigning it a class.
