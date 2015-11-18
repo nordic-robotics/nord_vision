@@ -27,7 +27,7 @@ class ImageObjectFilter:
         self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
         self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
 
-        self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.pcl_CoordinateArray_sub], queue_size = 100, slop = 0.5)
+        self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.pcl_CoordinateArray_sub], queue_size = 10, slop = 0.5)
         self.synchronizer.registerCallback(self.detectAndFilter)
         
         self.ugo_CoordinateArray_pub = rospy.Publisher("/nord/vision/ugo", CoordinateArray, queue_size=20)
@@ -172,13 +172,14 @@ class ImageObjectFilter:
         """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
         features from both pcl and image."""
         print "ran"
+
         try:
             centroidsArray = centroidsMessage
             rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
         except CvBridgeError, e:
             print e
-        # for c in centroidsMessage.data:
-        #     rgb_image = self.drawCentroidOnImag(rgb_image,c)
+        for c in centroidsMessage.data:
+            rgb_image = self.drawCentroidOnImag(rgb_image,c)
         
         # detect blobs
         blobs = self.detectBlobs(rgb_image)
@@ -206,12 +207,10 @@ class ImageObjectFilter:
             dists = cdist( centroids[:,3:],  blobs[:,:2] , 'euclidean')
             closestInd = np.argmin( dists, 1 )
             connected = dists[ range(nrCentroids), closestInd ] < blobs[ closestInd, 2 ]
-            centroidsArray.data = [ centroidsArray.data[ idx ] for idx in range(nrCentroids) if connected[idx] ]
-
             for i,c in enumerate(list(connected)):
                 if c:
                     closest = closestInd[i]
-                    objectArray.data[closest].VFH = centroidsArray.data[i].VFH
+                    objectArray.data[closest].features.vfh = centroidsArray.data[i].features.vfh
                     objectArray.data[closest].hull = centroidsArray.data[i].hull
 
         self.ugo_CoordinateArray_pub.publish( objectArray )
@@ -244,7 +243,7 @@ class ImageObjectFilter:
             b = float(lines[1]) # the second line contains the b value
             height = float(lines[3])
 
-        return np.arccos(b), height
+        return np.arccos(-b), height
 
     def estimateRelativeCoordinates(self, blob):
         """ Returns an estimate of relative coordinates (X,Y) of a blob from it's
@@ -262,7 +261,7 @@ class ImageObjectFilter:
         # The actual X and Y relative coordinates
         X = np.tan(theta) * self.calibrationHeight
         Y = X * np.tan(xAngle)  
-
+        #print X,Y
         return [ X, Y ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):
@@ -275,8 +274,8 @@ class ImageObjectFilter:
         c.xp = int(blob.pt[0])
         c.yp = int(blob.pt[1])
 
-        c.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
-        c.splits = [len(c.feature)/2] # length will never be odd
+        c.features.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
+        c.features.splits = [len(c.features.feature)/2] # length will never be odd
         return c
                 
 def main(args):
