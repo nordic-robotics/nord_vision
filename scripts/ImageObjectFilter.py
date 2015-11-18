@@ -157,6 +157,17 @@ class ImageObjectFilter:
 
         return blobs
 
+    def drawCentroidOnImag(self,image,centroid):
+         
+         p = (centroid.xp, centroid.yp)
+         p = cv2.KeyPoint(centroid.xp,centroid.yp,100,30)
+         im = cv2.drawKeypoints(image, 
+                                              [p], 
+                                              np.array([]), 
+                                              (0,255,0), 
+                                              cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+         return im 
+
     def detectAndFilter(self, image, centroidsMessage):
         """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
         features from both pcl and image."""
@@ -166,7 +177,9 @@ class ImageObjectFilter:
             rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
         except CvBridgeError, e:
             print e
-
+        # for c in centroidsMessage.data:
+        #     rgb_image = self.drawCentroidOnImag(rgb_image,c)
+        
         # detect blobs
         blobs = self.detectBlobs(rgb_image)
 
