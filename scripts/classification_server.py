@@ -26,7 +26,7 @@ def get_features_from_landmarks(object_id):
     """Requests features for object id"""
     rospy.wait_for_service('/nord/estimation/landmarks_service')
     try:
-        landmark_server = rospy.ServiceProxy('/nord/estimation/landmarks_service', LandmarksSrv)
+        landmarks_server = rospy.ServiceProxy('/nord/estimation/landmarks_service', LandmarksSrv)
         features = landmarks_server(object_id)
         return features.data
     except rospy.ServiceException, e:
@@ -38,6 +38,7 @@ def get_shape_class(vfh):
     try:
         shape_server = rospy.ServiceProxy('/nord/pointcloud/shape_classification_service', FlannSrv)
         shape = shape_server(vfh)
+        print shape
         return shape
     except rospy.ServiceException, e:
         print "Shape classifications call failed: %s"%e
@@ -53,6 +54,8 @@ def handle_request(req):
     print "call landmark for features"
     ## CALL LANDMARK SERVICE FOR FEATURES
     features = get_features_from_landmarks(object_id)
+    #print features
+    #print len(features)
     # f = Features()
     # # green cube:
     # f.feature = [ 50,  50,  50,  50,  50,  50,  50,  50,  49,  49,  49,  49,  49,
@@ -78,6 +81,7 @@ def handle_request(req):
     print "sum up classifications"
     ## SUM UP THE CLASSIFICATION
     colour_votes = Counter( colours )
+    print colour_votes
     colour = max(colour_votes.iteritems(), key=operator.itemgetter(1))[0]
 
     response = shape    
