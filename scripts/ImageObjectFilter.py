@@ -249,7 +249,7 @@ class ImageObjectFilter:
         """ Returns an estimate of relative coordinates (X,Y) of a blob from it's
          image coordinates (x,y).  X is along the face of the robot, Y to the sides."""
         x = blob.pt[0]
-        y = blob.pt[1]
+        y = np.min(479, blob.pt[1] + blob.size) # plus because high y values mean lower in the image
 
         # Angles relative to the camera orientation
         xAngle = (np.pi/6) * (x - 320) / 320
@@ -261,7 +261,6 @@ class ImageObjectFilter:
         # The actual X and Y relative coordinates
         X = np.tan(theta) * self.calibrationHeight
         Y = X * np.tan(xAngle)  
-        #print X,Y
         return [ X, Y ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):
