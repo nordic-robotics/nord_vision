@@ -52,12 +52,17 @@ def handle_request(req):
 
     print "call landmark for features"
     ## CALL LANDMARK SERVICE FOR FEATURES
-    #features = get_features_from_landmarks(object_id)
-    f = Features()
-    f.feature = range(60)
-    f.vfh = [0]*308
-    f.splits = [30]
-    features = [ f ]
+    features = get_features_from_landmarks(object_id)
+    # f = Features()
+    # # green cube:
+    # f.feature = [ 50,  50,  50,  50,  50,  50,  50,  50,  49,  49,  49,  49,  49,
+    #     49,  50,  50,  50,  50,  50,  50,  50,  49,  49,  50,  50,  50,
+    #     50,  50,  49,  49, 215, 212, 212, 215, 218, 221, 224, 227, 230,
+    #    233, 238, 238, 238, 236, 230, 225, 222, 225, 227, 230, 230, 230,
+    #    227, 222, 219, 217, 217, 222, 228, 230]
+    # f.vfh = [0]*308
+    # f.splits = [30]
+    # features = [ f ]
 
     print "classify shape"
     ## CALL FLANN SERVICE FOR SHAPE
