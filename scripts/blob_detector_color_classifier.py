@@ -12,8 +12,6 @@ from time import time
 import numpy.random as rnd
 import cPickle
 from std_msgs.msg import String
-import rospkg
-import os
 
 class ObjectDetector:
     def __init__(self):
@@ -22,10 +20,8 @@ class ObjectDetector:
         self.speaker_pub = rospy.Publisher("/espeak/string", String, queue_size=20)
         self.timeOfLastExecution = 0
 
-        rospack = rospkg.RosPack()
-        path = rospack.get_path('nord_vision')
                   #'src/nord/nord_vision/data/pixel_hue_sat'
-        with open(os.path.join(path,'data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl'), 'rb') as fid:
+        with open('src/nord/nord_vision/data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl', 'rb') as fid:
             self.classifier = cPickle.load(fid)
 
             # This should not be hardcoed like this.
@@ -68,7 +64,7 @@ class ObjectDetector:
         cv2.createTrackbar('maxInertia','bars', 1000, 10000, self.nothing)        
         
         # Distance
-        cv2.createTrackbar('minDistance','bars', 40, 255, self.nothing)
+        cv2.createTrackbar('minDistance','bars', 10, 255, self.nothing)
 
         cv2.createTrackbar('sat','bars', 0, 255, self.nothing)
 
@@ -105,7 +101,7 @@ class ObjectDetector:
         #self.params.maxInertiaRatio = cv2.getTrackbarPos('maxIertia','bars')/100.
 
         # Distance
-        self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
+        self.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
     def classify(self,keypoints, rgb_image, hsv_image):
         """Assigns a class to each keypoint by sampling indices from the keypoint's bounding box and assigning it a class.
@@ -132,6 +128,7 @@ class ObjectDetector:
             
             sampleIdx = rnd.choice(len(hue), 30)
             data = np.transpose( np.array( [hue[sampleIdx], sat[sampleIdx]] ) )
+            print data
             guessed_class = self.classifier.predict(data)
             counts = np.bincount(map(int,guessed_class))
             
@@ -185,7 +182,7 @@ class ObjectDetector:
         self.timeOfLastExecution = time()
         
         # This function should be broken up, as it does more than classify, it also extracts features.
-        guesses = self.classify( rgb_keypoints, rgb_image, hsv_image )
+        guesses = self.classify( hsv_keypoints, rgb_image, hsv_image )
 
         counter = 1
         for guess in guesses:
