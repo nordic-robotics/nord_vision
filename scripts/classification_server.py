@@ -2,6 +2,7 @@
 
 from nord_messages.srv import *
 from nord_messages.msg import *
+from std_msgs.msg import String
 from HueSatClass import HueSatClass
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
@@ -69,10 +70,13 @@ def handle_request(req):
 
     print "classify shape"
     ## CALL FLANN SERVICE FOR SHAPE
-    shape_votes = get_shape_class(features)
-    idx = shape_votes.counts.index( max(shape_votes.counts) )
-    shape = shape_votes.names[idx]
-
+    shape_votes = get_shape_class([f for f in features if len(f.vfh) > 0])
+    if len(shape_votes.names) > 0:
+        idx = shape_votes.counts.index( max(shape_votes.counts) )
+        shape = shape_votes.names[idx]
+    else:
+        shape = String()
+        shape.data = "???"
     print "classify colour"
     ## USE CLASSIFIER FOR COLOUR
     huesats = [ np.array(f.feature).reshape(2,f.splits[0]) for f in features ]
@@ -84,7 +88,7 @@ def handle_request(req):
     print colour_votes
     colour = max(colour_votes.iteritems(), key=operator.itemgetter(1))[0]
 
-    response = shape    
+    response = shape   
     response.data = colour + shape.data
     return ClassificationSrvResponse( response )
 

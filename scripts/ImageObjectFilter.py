@@ -23,6 +23,24 @@ from nord_messages.msg import CoordinateArray, Coordinate
 class ImageObjectFilter:
     def __init__(self):
         self.bridge = CvBridge()
+
+        # Setup SimpleBlobDetector parameters.
+        self.params = cv2.SimpleBlobDetector_Params()
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('nord_vision')
+
+        # with open(os.path.join(path,'data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl'), 'rb') as fid:
+        #     self.classifier = cPickle.load(fid)
+
+        #     # This should not be hardcoed like this.
+        #     self.classAssignments = {1:"Something yellow",
+        #                              2:"Something red",
+        #                              3:"Soisoisoisoisoisoisoisoisoisoi",
+        #                              4:"Something orange, could also be red",
+        #                              5:"Something blue",
+        #                              6:"Something blue",
+        #                              7:"Green wooden cube!",
+        #                              8:"Something light green"}
         
         self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
         self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
@@ -41,8 +59,7 @@ class ImageObjectFilter:
         path = rospack.get_path('nord_vision')
         self.calibrationAngle, self.calibrationHeight = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
 
-        # Setup SimpleBlobDetector parameters.
-        self.params = cv2.SimpleBlobDetector_Params()
+        
  
         #Create trackbars for some parametersrosro
         #cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
@@ -111,11 +128,10 @@ class ImageObjectFilter:
         # Distance
         self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
-    def detectBlobs(self,rgb_image):
+    def detectBlobs(self,rgb_image,hsv_image):
         """Uses simple blob detector on a smoothed rgb_image, crops away the base of the robot.
         Also draws and displays detected blobs if not commented."""
-        rgb_image = cv2.GaussianBlur(rgb_image, (7,7), 1)
-        hsv_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2HSV)
+        
 
         sat = cv2.getTrackbarPos('sat','bars')
         #satIdx = np.argwhere(hsv_image[:,:,1] < sat)
@@ -129,7 +145,6 @@ class ImageObjectFilter:
         rgb_image[400:,200:520,:] = 0
         # update parameters
         self.getParams()
-        
 
         detector = cv2.SimpleBlobDetector( self.params )
 
@@ -181,8 +196,10 @@ class ImageObjectFilter:
         for c in centroidsMessage.data:
             rgb_image = self.drawCentroidOnImag(rgb_image,c)
         
+        rgb_image = cv2.GaussianBlur(rgb_image, (7,7), 1)
+        hsv_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2HSV)
         # detect blobs
-        blobs = self.detectBlobs(rgb_image)
+        blobs = self.detectBlobs(rgb_image,hsv_image)
 
         nrCentroids = len(centroidsMessage.data)
         nrBlobs = len(blobs)
@@ -193,7 +210,7 @@ class ImageObjectFilter:
         objectArray.header = centroidsArray.header
         
         # Find color objects and their features
-        boundingBoxes = [ self.getBoundingBox(blob, rgb_image, self.boundingBoxScale) for blob in blobs ]
+        boundingBoxes = [ self.getBoundingBox(blob, hsv_image, self.boundingBoxScale) for blob in blobs ]
         features = [ self.extractColorFeature(box) for box in boundingBoxes ]
         relativeCoordinates = [ self.estimateRelativeCoordinates( blob ) for blob in blobs ]
         objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
@@ -206,7 +223,7 @@ class ImageObjectFilter:
         if nrCentroids > 0:
             dists = cdist( centroids[:,3:],  blobs[:,:2] , 'euclidean')
             closestInd = np.argmin( dists, 1 )
-            connected = dists[ range(nrCentroids), closestInd ] < blobs[ closestInd, 2 ]
+            connected = dists[ range(nrCentroids), closestInd ] < blobs[ closestInd, 2 ]*10000
             for i,c in enumerate(list(connected)):
                 if c:
                     closest = closestInd[i]
@@ -223,16 +240,31 @@ class ImageObjectFilter:
         minr = int(max(0,point.pt[1] - size))
         maxr = int(min(480,minr + 2*size))
 
+        cv2.imshow("d",image[ minr:maxr, minc:maxc, :])
+
         return image[ minr:maxr, minc:maxc, :]
 
     def extractColorFeature(self, image):
         """Only hue and sat for now gaussian sampled from the center of the image. This may be unsafe
         """
-        mu = [ m/2 for m in image.shape[:2] ]
-        s = [ m/2 for m in mu ]
-        S = [[s[0] ,0],[0, s[1]]]
-        feature = np.random.multivariate_normal(mu, S, self.nrSamples )
-        return feature.astype(int)
+        # mu = [ m/2 for m in image.shape[:2] ]
+        # s = [ m/2 for m in mu ]
+        # S = [[s[0] ,0],[0, s[1]]]
+        # idx = np.random.multivariate_normal(mu, S, self.nrSamples ).astype(int)
+
+
+        hue = image[:,:,0].flatten()
+        sat = image[:,:,1].flatten()
+        
+        sampleIdx = rnd.choice(len(hue), 30)
+        data = np.transpose( np.array( [hue[sampleIdx], sat[sampleIdx]] ) )
+        # guessed_class = self.classifier.predict(data)
+        # counts = np.bincount(map(int,guessed_class))
+        # print data
+        # print self.classAssignments[ np.argmax(counts) ]
+
+        #print image[:,:,0]
+        return data#image[idx[:,0],idx[:,1],0:2] 
 
     def readCalibration(self, calibrationFile):
         """Reads the calibration file and calculates the tilt angle of the camera"""

@@ -16,6 +16,8 @@ from std_msgs.msg import String
 class ObjectDetector:
     def __init__(self):
         self.bridge = CvBridge()
+        # Setup SimpleBlobDetector parameters.
+        self.params = cv2.SimpleBlobDetector_Params()
         self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.callback)
         self.speaker_pub = rospy.Publisher("/espeak/string", String, queue_size=20)
         self.timeOfLastExecution = 0
@@ -34,8 +36,7 @@ class ObjectDetector:
                                      7:"Green wooden cube!",
                                      8:"Something light green"}
 
-        # Setup SimpleBlobDetector parameters.
-        self.params = cv2.SimpleBlobDetector_Params()
+        
  
         #Create trackbars for some parameters
         cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
@@ -101,7 +102,7 @@ class ObjectDetector:
         #self.params.maxInertiaRatio = cv2.getTrackbarPos('maxIertia','bars')/100.
 
         # Distance
-        self.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
+        self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
     def classify(self,keypoints, rgb_image, hsv_image):
         """Assigns a class to each keypoint by sampling indices from the keypoint's bounding box and assigning it a class.
