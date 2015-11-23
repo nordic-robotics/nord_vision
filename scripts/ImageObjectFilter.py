@@ -21,26 +21,13 @@ import message_filters
 from nord_messages.msg import CoordinateArray, Coordinate
 
 class ImageObjectFilter:
-    def __init__(self):
+    def __init__(self, arg):
         self.bridge = CvBridge()
-
+        self.viz = arg == "viz"
         # Setup SimpleBlobDetector parameters.
         self.params = cv2.SimpleBlobDetector_Params()
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
-
-        # with open(os.path.join(path,'data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl'), 'rb') as fid:
-        #     self.classifier = cPickle.load(fid)
-
-        #     # This should not be hardcoed like this.
-        #     self.classAssignments = {1:"Something yellow",
-        #                              2:"Something red",
-        #                              3:"Soisoisoisoisoisoisoisoisoisoi",
-        #                              4:"Something orange, could also be red",
-        #                              5:"Something blue",
-        #                              6:"Something blue",
-        #                              7:"Green wooden cube!",
-        #                              8:"Something light green"}
         
         self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
         self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
@@ -50,9 +37,8 @@ class ImageObjectFilter:
         
         self.ugo_CoordinateArray_pub = rospy.Publisher("/nord/vision/ugo", CoordinateArray, queue_size=20)
 
-        self.minDistToConnect = 10   # in pixels
         self.boundingBoxScale = 0.7
-        
+        self.blob_dist_scale = 2
         self.nrSamples = 30
 
         rospack = rospkg.RosPack()
@@ -63,35 +49,61 @@ class ImageObjectFilter:
  
         #Create trackbars for some parametersrosro
         #cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
-        cv2.namedWindow('bars')
-        cv2.createTrackbar('draw_hist','bars', 0, 1, self.nothing)
-        
-        # Thresholds
-        cv2.createTrackbar('minThresh','bars', 5, 255, self.nothing)
-        cv2.createTrackbar('maxThresh','bars', 255, 255, self.nothing)
-        cv2.createTrackbar('step','bars', int(self.params.thresholdStep), 400, self.nothing)
-        
-        # Area
-        cv2.createTrackbar('minArea','bars', 500, 4000, self.nothing)
-        cv2.createTrackbar('maxArea','bars', 4000, 6000, self.nothing)
-        
-        # Convexity
-        cv2.createTrackbar('minConvexity','bars', 80, 100, self.nothing)
-        cv2.createTrackbar('maxConvexity','bars', 100, 100, self.nothing)
+        if self.viz:
+            cv2.namedWindow('bars')
+            cv2.createTrackbar('draw_hist','bars', 0, 1, self.nothing)
+            
+            # Thresholds
+            cv2.createTrackbar('minThresh','bars', 5, 255, self.nothing)
+            cv2.createTrackbar('maxThresh','bars', 255, 255, self.nothing)
+            cv2.createTrackbar('step','bars', int(self.params.thresholdStep), 400, self.nothing)
+            
+            # Area
+            cv2.createTrackbar('minArea','bars', 500, 4000, self.nothing)
+            cv2.createTrackbar('maxArea','bars', 4000, 6000, self.nothing)
+            
+            # Convexity
+            cv2.createTrackbar('minConvexity','bars', 80, 100, self.nothing)
+            cv2.createTrackbar('maxConvexity','bars', 100, 100, self.nothing)
 
-        # Circularity
-        cv2.createTrackbar('minCircularity','bars', 0, 100, self.nothing)        
-        cv2.createTrackbar('maxCircularity','bars', 100, 100, self.nothing)        
+            # Circularity
+            cv2.createTrackbar('minCircularity','bars', 0, 100, self.nothing)        
+            cv2.createTrackbar('maxCircularity','bars', 100, 100, self.nothing)        
 
-        # Inertia
-        cv2.createTrackbar('minInertia','bars', 0, 100, self.nothing)        
-        cv2.createTrackbar('maxInertia','bars', 1000, 10000, self.nothing)        
-        
-        # Distance
-        cv2.createTrackbar('minDistance','bars', 42, 255, self.nothing)
+            # Inertia
+            cv2.createTrackbar('minInertia','bars', 0, 100, self.nothing)        
+            cv2.createTrackbar('maxInertia','bars', 1000, 10000, self.nothing)        
+            
+            # Distance
+            cv2.createTrackbar('minDistance','bars', 42, 255, self.nothing)
 
-        cv2.createTrackbar('sat','bars', 40, 255, self.nothing)
-        self.getParams()
+            cv2.createTrackbar('sat','bars', 40, 255, self.nothing)
+            self.getParams()
+        else:
+            self.params.minThreshold = 5
+            self.params.maxThreshold = 255
+            self.params.thresholdStep = 10
+
+            # Filter by Area.       
+            self.params.filterByArea = True
+            self.params.minArea = 500
+            self.params.maxArea = 4000
+
+            # Circularity
+            self.params.filterByCircularity = True
+            self.params.minCircularity = 0/100.
+            self.params.maxCircularity = 100/100.
+
+            # Convexity
+            self.params.filterByConvexity = True
+            self.params.minConvexity = 80/100.
+            self.params.maxConvexity = 100/100.
+
+            # Inertia
+            self.params.filterByInertia = False
+
+            self.params.minDistBetweenBlobs = 42
+
 
     def nothing(self, x):
         """An empty callback function"""
@@ -128,12 +140,23 @@ class ImageObjectFilter:
         # Distance
         self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
+    def joinBlobs(self, rgb_blobs, hsv_blobs):
+        """"""
+
+        blobs = np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in (rgb_blobs + hsv_blobs) ] )
+        dists = cdist( blobs[:,:2],  blobs[:,:2] , 'euclidean')
+        thresholds = blobs[:,:,2]
+
+        closestInd = np.argmin( dists, 1 )
+        connected = dists[ range(blobs), closestInd ] < blobs[ closestInd, 2 ]
+
+
     def detectBlobs(self,rgb_image,hsv_image):
         """Uses simple blob detector on a smoothed rgb_image, crops away the base of the robot.
         Also draws and displays detected blobs if not commented."""
         
 
-        sat = cv2.getTrackbarPos('sat','bars')
+        #sat = cv2.getTrackbarPos('sat','bars')
         #satIdx = np.argwhere(hsv_image[:,:,1] < sat)
         #rgb_image[satIdx[:,0], satIdx[:,1], :] = 65000
         #idx = hsv_image[1:10:-1,1:10:-1,1] < sat
@@ -144,7 +167,8 @@ class ImageObjectFilter:
         hsv_image[400:,200:520,:] = 0
         rgb_image[400:,200:520,:] = 0
         # update parameters
-        self.getParams()
+        if self.viz:
+            self.getParams()
 
         detector = cv2.SimpleBlobDetector( self.params )
 
@@ -152,23 +176,26 @@ class ImageObjectFilter:
         hsv_inv = -hsv_image
 
         # Detect oobjects in rgb and hsv
-        # rgb_keypoints = detector.detect( rgb_image )
+        rgb_keypoints = detector.detect( rgb_image )
         hsv_keypoints = detector.detect( hsv_inv )
-        # self.blobs = rgb_keypoints + hsv_keypoints
-        blobs = hsv_keypoints
-        # im_with_keypoints = cv2.drawKeypoints(rgb_image, 
-        #                                       rgb_keypoints, 
-        #                                       np.array([]), 
-        #                                       (0,255,0), 
-        #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        im_with_keypoints = cv2.drawKeypoints(rgb_image, 
-                                              hsv_keypoints, 
-                                              np.array([]), 
-                                              (255,0,0), 
-                                              cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-        cv2.imshow("keypoints", im_with_keypoints)
-        cv2.waitKey(3)
+        blobs = hsv_keypoints#self.joinBlobs(rgb_keypoints, hsv_keypoints)
+        if self.viz:
+            #blobs = rgb_keypoints + hsv_keypoints
+            #blobs = hsv_keypoints
+            # im_with_keypoints = cv2.drawKeypoints(rgb_image, 
+            #                                       rgb_keypoints, 
+            #                                       np.array([]), 
+            #                                       (0,255,0), 
+            #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            im_with_keypoints = cv2.drawKeypoints(rgb_image, 
+                                                  hsv_keypoints, 
+                                                  np.array([]), 
+                                                  (255,0,0), 
+                                                  cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+            cv2.imshow("keypoints", im_with_keypoints)
+            cv2.waitKey(3)
 
         return blobs
 
@@ -186,7 +213,7 @@ class ImageObjectFilter:
     def detectAndFilter(self, image, centroidsMessage):
         """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
         features from both pcl and image."""
-        print "ran"
+        #print "ran"
 
         try:
             centroidsArray = centroidsMessage
@@ -223,9 +250,10 @@ class ImageObjectFilter:
         if nrCentroids > 0:
             dists = cdist( centroids[:,3:],  blobs[:,:2] , 'euclidean')
             closestInd = np.argmin( dists, 1 )
-            connected = dists[ range(nrCentroids), closestInd ] < blobs[ closestInd, 2 ]*10000
+            connected = dists[ range(nrCentroids), closestInd ] < blobs[ closestInd, 2 ]*self.blob_dist_scale
             for i,c in enumerate(list(connected)):
                 if c:
+                    print str(i) + " is connected"
                     closest = closestInd[i]
                     objectArray.data[closest].features.vfh = centroidsArray.data[i].features.vfh
                     objectArray.data[closest].hull = centroidsArray.data[i].hull
@@ -240,7 +268,7 @@ class ImageObjectFilter:
         minr = int(max(0,point.pt[1] - size))
         maxr = int(min(480,minr + 2*size))
 
-        cv2.imshow("d",image[ minr:maxr, minc:maxc, :])
+        #cv2.imshow("d",image[ minr:maxr, minc:maxc, :])
 
         return image[ minr:maxr, minc:maxc, :]
 
@@ -314,7 +342,7 @@ def main(args):
 
     rospy.init_node('ImageObjectFilter', anonymous=True)
     
-    detector = ImageObjectFilter()
+    detector = ImageObjectFilter(args[-1])
 
     rate = rospy.Rate(30)
 
