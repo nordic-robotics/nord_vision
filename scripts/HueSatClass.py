@@ -17,14 +17,14 @@ class HueSatClass:
             self.classifier = cPickle.load(fid)
 
             # This should not be hardcoed like this.
-            self.classAssignments = {1:"Yellow ",
-                                     2:"Red ",
-                                     3:"Pruple ",
-                                     4:"Orange or red ",
-                                     5:"Blue ",
-                                     6:"Blue ",
-                                     7:"Green ",
-                                     8:"Light green "}
+            self.classAssignments = {1:"yellow",
+                                     2:"red",
+                                     3:"pruple",
+                                     4:"orange",
+                                     5:"blue",
+                                     6:"blue",
+                                     7:"green",
+                                     8:"light green"}
             # self.classAssignments = {1:"Yellow ",
             #                          2:"Red ",
             #                          3:"Pruple ",

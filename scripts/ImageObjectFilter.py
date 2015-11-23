@@ -12,7 +12,6 @@ from time import time
 import numpy.random as rnd
 import cPickle
 from std_msgs.msg import String
-import scipy as sp
 from scipy.spatial.distance import cdist
 import rospkg
 import os
@@ -140,15 +139,15 @@ class ImageObjectFilter:
         # Distance
         self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
-    def joinBlobs(self, rgb_blobs, hsv_blobs):
-        """"""
+    # def joinBlobs(self, rgb_blobs, hsv_blobs):
+    #     """"""
 
-        blobs = np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in (rgb_blobs + hsv_blobs) ] )
-        dists = cdist( blobs[:,:2],  blobs[:,:2] , 'euclidean')
-        thresholds = blobs[:,:,2]
+    #     blobs = np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in (rgb_blobs + hsv_blobs) ] )
+    #     dists = cdist( blobs[:,:2],  blobs[:,:2] , 'euclidean')
+    #     thresholds = blobs[:,:,2]
 
-        closestInd = np.argmin( dists, 1 )
-        connected = dists[ range(blobs), closestInd ] < blobs[ closestInd, 2 ]
+    #     closestInd = np.argmin( dists, 1 )
+    #     connected = dists[ range(blobs), closestInd ] < blobs[ closestInd, 2 ]
 
 
     def detectBlobs(self,rgb_image,hsv_image):
@@ -179,16 +178,16 @@ class ImageObjectFilter:
         rgb_keypoints = detector.detect( rgb_image )
         hsv_keypoints = detector.detect( hsv_inv )
 
-        blobs = hsv_keypoints#self.joinBlobs(rgb_keypoints, hsv_keypoints)
+        blobs = hsv_keypoints+rgb_keypoints#self.joinBlobs(rgb_keypoints, hsv_keypoints)
         if self.viz:
             #blobs = rgb_keypoints + hsv_keypoints
             #blobs = hsv_keypoints
-            # im_with_keypoints = cv2.drawKeypoints(rgb_image, 
-            #                                       rgb_keypoints, 
-            #                                       np.array([]), 
-            #                                       (0,255,0), 
-            #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             im_with_keypoints = cv2.drawKeypoints(rgb_image, 
+                                                  rgb_keypoints, 
+                                                  np.array([]), 
+                                                  (0,0,255), 
+                                                  cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            im_with_keypoints = cv2.drawKeypoints(im_with_keypoints, 
                                                   hsv_keypoints, 
                                                   np.array([]), 
                                                   (255,0,0), 

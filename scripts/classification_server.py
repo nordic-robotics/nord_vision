@@ -14,6 +14,28 @@ import operator
 
 # global hack variables
 classifier = HueSatClass()
+objects = [ "An object", 
+                "Red Cube",
+                "Red Hollow Cube",
+                "Blue Cube",
+                "Green Cube",
+                "Yellow Cube",
+                "Yellow Ball",
+                "Red Ball",
+                "Green Cylinder",
+                "Blue Triangle",
+                "Purple Cross",
+                "Purple Star",
+                "Patric"]
+
+classes = {"yellow sphere":,
+            "red ",
+                                     3:"pruple",
+                                     4:"orange",
+                                     5:"blue",
+                                     6:"blue",
+                                     7:"green",
+                                     8:"light green"}
 
 def createClassificationMsg(obj, prediction):
     """Name tells the whole story"""
@@ -45,28 +67,70 @@ def get_shape_class(vfh):
         print "Shape classifications call failed: %s"%e
 
 
+def make_a_decision(shape, colour):
+    global objects
+    global classes
+
+    if colour=="green":
+        if shape=="cube":
+            return "Green Cube"
+        
+        return "A Green Object"
+
+    if colour=="light green":
+        if shape=="cylinder":
+            return "Green Cylinder"
+        
+        return "Light Green Object"
+
+    if colour=="orange":
+        if shape=="star":
+            return "Patric"
+        
+        return "Orange Object"
+
+    if colour=="blue":
+        if shape=="triangle":
+            return "Blue Triangle"
+        if shape=="cube":
+            return "Blue Cube"
+
+        return "Blue object"
+
+    if colour=="yellow":
+        if shape="sphere":
+            return "Yellow Ball"
+
+        return "Yellow Object"
+
+    if colour=="pruple":
+        if shape=="star":
+            return "Purple Star"
+        if shape=="Cross":
+            return "Purple Cross"
+
+        return "Purple Object"
+
+    if colour=="red":
+        if shape=="rounded cube":
+            return "Red Hollow Cube"
+        if shape=="cube":
+            return "Red Cube"
+        if shape=="sphere":
+            return "Red Ball"
+
+        return "Red Object"
+
 def handle_request(req):
     """Makes a method call to the object detector and classifier a"""
     print "Returning classes"
     global classifier
-
+    
     object_id = req.id
 
     print "call landmark for features"
     ## CALL LANDMARK SERVICE FOR FEATURES
     features = get_features_from_landmarks(object_id)
-    #print features
-    #print len(features)
-    # f = Features()
-    # # green cube:
-    # f.feature = [ 50,  50,  50,  50,  50,  50,  50,  50,  49,  49,  49,  49,  49,
-    #     49,  50,  50,  50,  50,  50,  50,  50,  49,  49,  50,  50,  50,
-    #     50,  50,  49,  49, 215, 212, 212, 215, 218, 221, 224, 227, 230,
-    #    233, 238, 238, 238, 236, 230, 225, 222, 225, 227, 230, 230, 230,
-    #    227, 222, 219, 217, 217, 222, 228, 230]
-    # f.vfh = [0]*308
-    # f.splits = [30]
-    # features = [ f ]
 
     print "classify shape"
     ## CALL FLANN SERVICE FOR SHAPE
@@ -88,9 +152,12 @@ def handle_request(req):
     print colour_votes
     colour = max(colour_votes.iteritems(), key=operator.itemgetter(1))[0]
 
+    decision = make_a_decision(shape, colour)
+
     response = shape   
-    response.data = colour + shape.data
+    response.data = decision
     return ClassificationSrvResponse( response )
+
 
 def classification_server():
     rospy.init_node('classification_server_node')
