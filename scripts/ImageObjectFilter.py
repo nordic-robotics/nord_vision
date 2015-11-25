@@ -312,7 +312,7 @@ class ImageObjectFilter:
 
         # Angles relative to the camera orientation
         xAngle = (np.pi/6) * (x - 320) / 320
-        yAngle = -(np.pi/8) * (y - 240) / 240
+        yAngle = (np.pi/8) * (y - 240) / 240
 
         # The angle, the ground/camera/object form with Y kept at zero
         theta = np.pi/2 - self.calibrationAngle + yAngle
