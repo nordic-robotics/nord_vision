@@ -175,10 +175,10 @@ class ImageObjectFilter:
         hsv_inv = -hsv_image
 
         # Detect oobjects in rgb and hsv
-        rgb_keypoints = detector.detect( rgb_image )
+        #rgb_keypoints = detector.detect( rgb_image )
         hsv_keypoints = detector.detect( hsv_inv )
 
-        blobs = hsv_keypoints+rgb_keypoints#self.joinBlobs(rgb_keypoints, hsv_keypoints)
+        blobs = hsv_keypoints#+rgb_keypoints#self.joinBlobs(rgb_keypoints, hsv_keypoints)
         if self.viz:
             #blobs = rgb_keypoints + hsv_keypoints
             #blobs = hsv_keypoints
