@@ -28,14 +28,14 @@ objects = [ "An object",
                 "Purple Star",
                 "Patric"]
 
-classes = {"yellow sphere":,
-            "red ",
-                                     3:"pruple",
-                                     4:"orange",
-                                     5:"blue",
-                                     6:"blue",
-                                     7:"green",
-                                     8:"light green"}
+classes = {     1:"yellow sphere",
+                2:"red ",
+                3:"pruple",
+                4:"orange",
+                5:"blue",
+                6:"blue",
+                7:"green",
+                8:"light green"}
 
 def createClassificationMsg(obj, prediction):
     """Name tells the whole story"""
@@ -70,6 +70,8 @@ def get_shape_class(vfh):
 def make_a_decision(shape, colour):
     global objects
     global classes
+    print shape
+    print colour
 
     if colour=="green":
         if shape=="cube":
@@ -98,7 +100,7 @@ def make_a_decision(shape, colour):
         return "Blue object"
 
     if colour=="yellow":
-        if shape="sphere":
+        if shape=="sphere":
             return "Yellow Ball"
 
         return "Yellow Object"
@@ -118,6 +120,8 @@ def make_a_decision(shape, colour):
             return "Red Cube"
         if shape=="sphere":
             return "Red Ball"
+        if shape=="cylinder":
+            return "Red Cylinder"
 
         return "Red Object"
 
@@ -152,7 +156,7 @@ def handle_request(req):
     print colour_votes
     colour = max(colour_votes.iteritems(), key=operator.itemgetter(1))[0]
 
-    decision = make_a_decision(shape, colour)
+    decision = make_a_decision(shape.data, colour)
 
     response = shape   
     response.data = decision
