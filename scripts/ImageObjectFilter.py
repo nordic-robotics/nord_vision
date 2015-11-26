@@ -76,7 +76,7 @@ class ImageObjectFilter:
             # Distance
             cv2.createTrackbar('minDistance','bars', 42, 255, self.nothing)
 
-            cv2.createTrackbar('sat','bars', 40, 255, self.nothing)
+            cv2.createTrackbar('sat','bars', 160, 255, self.nothing)
             self.getParams()
         else:
             self.params.minThreshold = 5
@@ -102,6 +102,7 @@ class ImageObjectFilter:
             self.params.filterByInertia = False
 
             self.params.minDistBetweenBlobs = 42
+            self.params.filterByColor = False;
 
 
     def nothing(self, x):
@@ -135,7 +136,7 @@ class ImageObjectFilter:
         #print self.params.maxInertiaRatio
         #self.params.minInertiaRatio = cv2.getTrackbarPos('minIertia','bars')/100.
         #self.params.maxInertiaRatio = cv2.getTrackbarPos('maxIertia','bars')/100.
-
+        self.params.filterByColor = False;
         # Distance
         self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
@@ -155,16 +156,24 @@ class ImageObjectFilter:
         Also draws and displays detected blobs if not commented."""
         
 
-        #sat = cv2.getTrackbarPos('sat','bars')
+        if self.viz:
+            sat = cv2.getTrackbarPos('sat','bars')
+        else:
+            sat=160
         #satIdx = np.argwhere(hsv_image[:,:,1] < sat)
         #rgb_image[satIdx[:,0], satIdx[:,1], :] = 65000
-        #idx = hsv_image[1:10:-1,1:10:-1,1] < sat
-        #rgb_image[idx] = 65000
-        #hsv_image[satIdx[:,0], satIdx[:,1], :] = 65000
-        #hsv_image[idx] = 65000
+        # idx = hsv_image[:,:,1] < sat
+        # rgb_image[idx] = 65000
+        # #hsv_image[satIdx[:,0], satIdx[:,1], :] = 65000
+        # hsv_image[idx] = 65000    
+        v, thresh = cv2.threshold(hsv_image[:,:,1],sat,255,cv2.THRESH_TOZERO)
+        hsv_image[:,:,1] = thresh
+        # kkk = thresh == 0
+        # rgb_image[kkk] = 65000
+
 
         hsv_image[400:,200:520,:] = 0
-        rgb_image[400:,200:520,:] = 0
+        # rgb_image[400:,200:520,:] = 0
         # update parameters
         if self.viz:
             self.getParams()
@@ -172,21 +181,22 @@ class ImageObjectFilter:
         detector = cv2.SimpleBlobDetector( self.params )
 
         # We need to invert the hsv for SBD
-        hsv_inv = -hsv_image
+        #hsv_image[:,:,2] = 0
 
         # Detect oobjects in rgb and hsv
         #rgb_keypoints = detector.detect( rgb_image )
-        hsv_keypoints = detector.detect( hsv_inv )
+        hsv_keypoints = detector.detect( hsv_image[:,:,1] )
 
         blobs = hsv_keypoints#+rgb_keypoints#self.joinBlobs(rgb_keypoints, hsv_keypoints)
         if self.viz:
+            im_with_keypoints = rgb_image
             #blobs = rgb_keypoints + hsv_keypoints
             #blobs = hsv_keypoints
-            im_with_keypoints = cv2.drawKeypoints(rgb_image, 
-                                                  rgb_keypoints, 
-                                                  np.array([]), 
-                                                  (0,0,255), 
-                                                  cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # im_with_keypoints = cv2.drawKeypoints(im_with_keypoints, 
+            #                                       rgb_keypoints, 
+            #                                       np.array([]), 
+            #                                       (0,0,255), 
+            #                                       cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             im_with_keypoints = cv2.drawKeypoints(im_with_keypoints, 
                                                   hsv_keypoints, 
                                                   np.array([]), 
