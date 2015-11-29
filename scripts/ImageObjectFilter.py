@@ -23,6 +23,7 @@ class ImageObjectFilter:
     def __init__(self, arg):
         self.bridge = CvBridge()
         self.viz = arg == "viz"
+        self.pub = arg == "pub"
         # Setup SimpleBlobDetector parameters.
         self.params = cv2.SimpleBlobDetector_Params()
         rospack = rospkg.RosPack()
@@ -35,6 +36,8 @@ class ImageObjectFilter:
         self.synchronizer.registerCallback(self.detectAndFilter)
         
         self.ugo_CoordinateArray_pub = rospy.Publisher("/nord/vision/ugo", CoordinateArray, queue_size=20)
+        if self.pub:
+            self.blobImage_pub = rospy.Publisher("/nord/vision/blobs", Image, queue_size=20)
 
         self.boundingBoxScale = 0.7
         self.blob_dist_scale = 2
@@ -181,7 +184,7 @@ class ImageObjectFilter:
         hsv_keypoints = detector.detect( hsv_image[:,:,1] )
 
         blobs = hsv_keypoints#+rgb_keypoints#self.joinBlobs(rgb_keypoints, hsv_keypoints)
-        if self.viz:
+        if self.viz or self.pub:
             im_with_keypoints = rgb_image
             #blobs = rgb_keypoints + hsv_keypoints
             #blobs = hsv_keypoints
@@ -195,9 +198,9 @@ class ImageObjectFilter:
                                                   np.array([]), 
                                                   (255,0,0), 
                                                   cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
-            cv2.imshow("keypoints", im_with_keypoints)
-            cv2.waitKey(3)
+            if self.viz:
+                cv2.imshow("keypoints", im_with_keypoints)
+                cv2.waitKey(3)
 
         return blobs
 
@@ -223,7 +226,7 @@ class ImageObjectFilter:
         except CvBridgeError, e:
             print e
 
-        if self.viz:
+        if self.viz or self.pub:
             for c in centroidsMessage.data:
                 rgb_image = self.drawCentroidOnImag(rgb_image,c)
         
@@ -236,6 +239,9 @@ class ImageObjectFilter:
         
         # detect blobs
         blobs = self.detectBlobs(rgb_image,hsv_image)
+
+        if self.pub:
+            self.blobImage_pub.publish(self.bridge.cv2_to_imgmsg(image, "bgr8"))
 
         nrCentroids = len(centroidsMessage.data)
         nrBlobs = len(blobs)
@@ -342,7 +348,7 @@ class ImageObjectFilter:
         # The actual X and Y relative coordinates
         X = np.tan(theta) * self.calibrationHeight
         Y = X * np.tan(xAngle)  
-        print [X,Y]
+        #print [X,Y]
         return [ X, Y ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):
