@@ -229,7 +229,7 @@ class ImageObjectFilter:
         if self.viz or self.pub:
             for c in centroidsMessage.data:
                 rgb_image = self.drawCentroidOnImag(rgb_image,c)
-        
+                
         # only work on the image within 2 meters
         rgb_image = rgb_image[self.upperCropValue:self.lowerCropValue,:,:]        
 
@@ -241,8 +241,13 @@ class ImageObjectFilter:
         blobs = self.detectBlobs(rgb_image,hsv_image)
 
         if self.pub:
-            self.blobImage_pub.publish(self.bridge.cv2_to_imgmsg(image, "bgr8"))
-
+            im_with_keypoints = cv2.drawKeypoints(rgb_image,
+                                                  blobs,
+                                                  np.array([]),
+                                                  (255,0,0),
+                                                  cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            self.blobImage_pub.publish(self.bridge.cv2_to_imgmsg(im_with_keypoints.astype('uint8'), "bgr8"))
+            
         nrCentroids = len(centroidsMessage.data)
         nrBlobs = len(blobs)
         if nrBlobs == 0:
