@@ -219,6 +219,7 @@ def handle_request(req):
     return ClassificationSrvResponse( response )
 
 
+
 def classification_server():
     rospy.init_node('classification_server_node')
     s = rospy.Service('/nord/vision/classification_service', ClassificationSrv, handle_request)
