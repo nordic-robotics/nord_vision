@@ -42,9 +42,11 @@ class ImageObjectFilter:
 
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
-        self.calibrationAngle, self.calibrationHeight = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
+        self.lowerCropValue = 450  # we should calculate this from tilt angle
+        self.calibrationAngle, self.calibrationHeight, self.upperCropValue = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
 
-        
+        print self.upperCropValue
+        print self.calibrationAngle
  
         #Create trackbars for some parametersrosro
         #cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
@@ -153,24 +155,15 @@ class ImageObjectFilter:
 
     def detectBlobs(self,rgb_image,hsv_image):
         """Uses simple blob detector on a smoothed rgb_image, crops away the base of the robot.
-        Also draws and displays detected blobs if not commented."""
+        Also draws and displays detected blobs if the the module is launched with the argument viz."""
         
-
         if self.viz:
             sat = cv2.getTrackbarPos('sat','bars')
         else:
             sat=160
-        #satIdx = np.argwhere(hsv_image[:,:,1] < sat)
-        #rgb_image[satIdx[:,0], satIdx[:,1], :] = 65000
-        # idx = hsv_image[:,:,1] < sat
-        # rgb_image[idx] = 65000
-        # #hsv_image[satIdx[:,0], satIdx[:,1], :] = 65000
-        # hsv_image[idx] = 65000    
+ 
         v, thresh = cv2.threshold(hsv_image[:,:,1],sat,255,cv2.THRESH_TOZERO)
         hsv_image[:,:,1] = thresh
-        # kkk = thresh == 0
-        # rgb_image[kkk] = 65000
-
 
         hsv_image[400:,200:520,:] = 0
         # rgb_image[400:,200:520,:] = 0
@@ -229,11 +222,18 @@ class ImageObjectFilter:
             rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
         except CvBridgeError, e:
             print e
-        for c in centroidsMessage.data:
-            rgb_image = self.drawCentroidOnImag(rgb_image,c)
+
+        if self.viz:
+            for c in centroidsMessage.data:
+                rgb_image = self.drawCentroidOnImag(rgb_image,c)
         
+        # only work on the image within 2 meters
+        rgb_image = rgb_image[self.upperCropValue:self.lowerCropValue,:,:]        
+
         rgb_image = cv2.GaussianBlur(rgb_image, (7,7), 1)
+
         hsv_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2HSV)
+        
         # detect blobs
         blobs = self.detectBlobs(rgb_image,hsv_image)
 
@@ -253,7 +253,7 @@ class ImageObjectFilter:
 
         # reformat the data as arrays
         centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in centroidsArray.data ] )
-        blobs =     np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in blobs ] )
+        blobs =     np.array( [ [ blob.pt[0], blob.pt[1] + self.upperCropValue , blob.size ] for blob in blobs ] )
 
         # If a centroid lies within a blob we regard it as an object and filter debris away
         if nrCentroids > 0:
@@ -293,7 +293,7 @@ class ImageObjectFilter:
         hue = image[:,:,0].flatten()
         sat = image[:,:,1].flatten()
         
-        sampleIdx = rnd.choice(len(hue), 30)
+        sampleIdx = rnd.choice(len(hue), self.nrSamples)
         data = np.transpose( np.array( [hue[sampleIdx], sat[sampleIdx]] ) )
         # guessed_class = self.classifier.predict(data)
         # counts = np.bincount(map(int,guessed_class))
@@ -304,7 +304,8 @@ class ImageObjectFilter:
         return data#image[idx[:,0],idx[:,1],0:2] 
 
     def readCalibration(self, calibrationFile):
-        """Reads the calibration file and calculates the tilt angle of the camera"""
+        """Reads the calibration file and calculates the tilt angle of the camera and sets the pixel value 
+        from where to crop the image."""
         b = None
         height = None
         with open(calibrationFile,'rb') as f:
@@ -312,13 +313,24 @@ class ImageObjectFilter:
             b = float(lines[1]) # the second line contains the b value
             height = float(lines[3])
 
-        return np.arccos(-b), height
+        tiltAngle = np.arccos(-b)
+
+        # crop angle
+        maxAngle = np.arctan( -2. / b )
+        # print maxAngle
+        yAngle = 0.5 * np.pi - tiltAngle - maxAngle
+        # print yAngle
+        yCrop = - 240 * ( (8/np.pi) * yAngle -1 ) 
+        yCrop = max(0, yCrop)
+        # print yCrop
+
+        return tiltAngle, height, yCrop
 
     def estimateRelativeCoordinates(self, blob):
         """ Returns an estimate of relative coordinates (X,Y) of a blob from it's
          image coordinates (x,y).  X is along the face of the robot, Y to the sides."""
         x = blob.pt[0]
-        y = min(479, blob.pt[1] + blob.size) # plus because high y values mean lower in the image
+        y = min(479, blob.pt[1] + blob.size + self.upperCropValue) # plus because high y values mean lower in the image
 
         # Angles relative to the camera orientation
         xAngle = -(np.pi/6) * (x - 320) / 320
@@ -330,7 +342,7 @@ class ImageObjectFilter:
         # The actual X and Y relative coordinates
         X = np.tan(theta) * self.calibrationHeight
         Y = X * np.tan(xAngle)  
-        # print [X,Y]
+        print [X,Y]
         return [ X, Y ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):
@@ -341,7 +353,7 @@ class ImageObjectFilter:
         c.z = 0
 
         c.xp = int(blob.pt[0])
-        c.yp = int(blob.pt[1])
+        c.yp = int(blob.pt[1]) + self.upperCropValue
 
         c.features.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
         c.features.splits = [len(c.features.feature)/2] # length will never be odd
