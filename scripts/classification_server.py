@@ -70,8 +70,7 @@ def get_shape_class(vfh):
 def make_a_decision(shape, colour):
     global objects
     global classes
-    print shape
-    print colour
+    print "NOW I WILL MAKE DECISION BASED ON THE SHAPE: {} AND COLOUR: {}".format(shape, colour)
 
     if colour=="green":
         if shape=="cube":
@@ -100,7 +99,7 @@ def make_a_decision(shape, colour):
         return "Blue object"
 
     if colour=="yellow":
-        if shape=="sphere":
+        if shape=="ball":
             return "Yellow Ball"
 
         return "Yellow Object"
@@ -108,17 +107,17 @@ def make_a_decision(shape, colour):
     if colour=="pruple":
         if shape=="star":
             return "Purple Star"
-        if shape=="Cross":
+        if shape=="cross":
             return "Purple Cross"
 
         return "Purple Object"
 
     if colour=="red":
-        if shape=="rounded cube":
+        if shape=="hollowcube":
             return "Red Hollow Cube"
         if shape=="cube":
             return "Red Cube"
-        if shape=="sphere":
+        if shape=="ball":
             return "Red Ball"
         if shape=="cylinder":
             return "Red Cylinder"
@@ -138,13 +137,14 @@ def handle_request(req):
 
     print "classify shape"
     ## CALL FLANN SERVICE FOR SHAPE
-    shape_votes = get_shape_class([f for f in features if len(f.vfh) > 0])
-    if len(shape_votes.names) > 0:
+    shape = String()
+    shape.data = "???"
+    shape_features = [f for f in features if len(f.vfh) > 0]
+    if len(shape_features) > 0:
+        shape_votes = get_shape_class( shape_features )
         idx = shape_votes.counts.index( max(shape_votes.counts) )
         shape = shape_votes.names[idx]
-    else:
-        shape = String()
-        shape.data = "???"
+    
     print "classify colour"
     ## USE CLASSIFIER FOR COLOUR
     huesats = [ np.array(f.feature).reshape(2,f.splits[0]) for f in features ]
