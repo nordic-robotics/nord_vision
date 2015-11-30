@@ -52,7 +52,7 @@ def handle_request(req):
 	
 
 	#stuff that does out. nothing #lol
-	#return EvidenceSrvResponse()
+	return EvidenceSrvResponse(1337)
 
 def evidence_server():
 	rospy.init_node('evidence_server_node')

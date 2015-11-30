@@ -15,7 +15,7 @@ def evidence_client(id,classification, position):
     try:
         evidence_server = rospy.ServiceProxy('/nord/evidence_service', EvidenceSrv)
         print "before calling client"
-        evidence_server(id,classification, position)
+        print evidence_server(id,classification, position)
         print "after calling client"
         
     except rospy.ServiceException, e:
