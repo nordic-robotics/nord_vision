@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import os
 from nord_messages.srv import *
 from nord_messages.msg import *
 from std_msgs.msg import String
@@ -10,10 +10,34 @@ import rospy
 import numpy as np
 from collections import Counter
 import operator
+import rospkg
+
 
 
 # global hack variables
 classifier = HueSatClass()
+avail = np.array([[1,0,0,0,0,0,1],[0,1,0,0,0,0,0],[1,0,0,1,0,1,1],[0,0,0,0,1,0,0],[1,0,0,0,0,0,0],[0,1,1,0,0,0,0],[0,0,0,0,0,1,0]])
+
+
+def readConfusionMatrix():
+    """Hardcoded reading of our confusion matrix"""
+    rospack = rospkg.RosPack()
+    path = rospack.get_path('nord_pointcloud')
+    lines = []
+    with open(os.path.join(path,'data/confusion_3nn_voxelized.txt'), 'rb') as f:
+        lines = f.readlines()
+        
+    mat = np.array([ map(int, line.split()) for line in lines ])
+
+    mat2 = mat[0:7,:] + mat[7:14,:] + mat[14:21,:] + mat[21:28,:] + mat[28:,:]
+
+    summa = np.sum(mat2.astype('float'),1)
+    confusion = np.transpose(np.divide(np.transpose(mat2),summa))
+
+    return confusion
+
+confusion = readConfusionMatrix()
+
 objects = [ "An object", 
                 "Red Cube",
                 "Red Hollow Cube",
@@ -36,6 +60,12 @@ classes = {     1:"yellow sphere",
                 6:"blue",
                 7:"green",
                 8:"light green"}
+colourClassIdx = {'red':0,'pruple':1,'orange':2,'green':3,'light green':4,'blue':5,'yellow':6}
+idxClassColour = {0:'red',1:'pruple',2:'orange',3:'green',4:'light green',5:'blue',6:'yellow'}
+shapeClassIdx = {'ball':0,'cross':1,'cube':2,'cylinder':3,'hollowcube':4,'star':5,'triangle':6}
+
+
+
 
 def createClassificationMsg(obj, prediction):
     """Name tells the whole story"""
@@ -67,10 +97,24 @@ def get_shape_class(vfh):
         print "Shape classifications call failed: %s"%e
 
 
-def make_a_decision(shape, colour):
+def make_a_decision(shapeArray, colourArray):
     global objects
     global classes
-    print "NOW I WILL MAKE DECISION BASED ON THE SHAPE: {} AND COLOUR: {}".format(shape, colour)
+
+    print "NOW I WILL MAKE DECISION BASED ON THE SHAPE: {} AND COLOUR: {}".format(shapeArray, colourArray)
+
+    colour = idxClassColour[ np.argmax(colourArray) ]
+
+    # Find shapes allowed by the colour and weigh them
+    availShape = np.dot(avail,color)
+    # Find possibilities of getting the guessed shape and aggregate them
+    confusionShapes = np.multiply(confusion[:,shape>0],shape[shape>0])
+    sums = np.sum(confusionShapes,1)
+    # Pick the shape allowed by the availShape from colour information
+    possibleOutcomes = np.multiply(sums,availShape)
+    # Choose the row: actual shape, most probable 
+    guess = np.argmax(possibleOutcomes)
+    shape = shapeClassIdx.keys()[guess]
 
     if colour=="green":
         if shape=="cube":
@@ -140,10 +184,15 @@ def handle_request(req):
     shape = String()
     shape.data = "???"
     shape_features = [f for f in features if len(f.vfh) > 0]
+
+    shapeArray = np.zeros(1,7)
     if len(shape_features) > 0:
         shape_votes = get_shape_class( shape_features )
-        idx = shape_votes.counts.index( max(shape_votes.counts) )
-        shape = shape_votes.names[idx]
+        # idx = shape_votes.counts.index( max(shape_votes.counts) )
+        # shape = shape_votes.names[idx]
+        for i,name in enumerate(shape_votes.names):
+            shapeArray[ shapeClassIdx[ name ] ] = shape_votes.counts[i]
+    shapeArray = shapeArray / np.sum(shapeArray)
     
     print "classify colour"
     ## USE CLASSIFIER FOR COLOUR
@@ -154,9 +203,16 @@ def handle_request(req):
     ## SUM UP THE CLASSIFICATION
     colour_votes = Counter( colours )
     print colour_votes
-    colour = max(colour_votes.iteritems(), key=operator.itemgetter(1))[0]
 
-    decision = make_a_decision(shape.data, colour)
+    colourArray = np.zeros(1,7)
+    for key, value in colour_votes.iteritems():
+        colourArray[colourClassIdx[key]] = value
+    colourArray = colourArray / np.sum(colourArray)
+
+    # colour = max(colour_votes.iteritems(), key=operator.itemgetter(1))[0]
+
+    decision = make_a_decision(shapeArray, colourArray)
+    # decision = make_a_decision(shape.data, colour)
 
     response = shape   
     response.data = decision
