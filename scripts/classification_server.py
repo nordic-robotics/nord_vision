@@ -16,7 +16,13 @@ import rospkg
 
 # global hack variables
 classifier = HueSatClass()
-avail = np.array([[1,0,0,0,0,0,1],[0,1,0,0,0,0,0],[1,0,0,1,0,1,1],[0,0,0,0,1,0,0],[1,0,0,0,0,0,0],[0,1,1,0,0,0,0],[0,0,0,0,0,1,0]])
+avail = np.array([[1,0,0,0,0,0,1],
+                  [0,1,0,0,0,0,0],
+                  [1,0,0,1,0,1,1],
+                  [0,0,0,0,1,0,0],
+                  [1,0,0,0,0,0,0],
+                  [0,1,1,0,0,0,0],
+                  [0,0,0,0,0,1,0]])
 
 
 def readConfusionMatrix():
@@ -100,15 +106,16 @@ def get_shape_class(vfh):
 def make_a_decision(shapeArray, colourArray):
     global objects
     global classes
-
+    global idxClassColour
+    global avail
     print "NOW I WILL MAKE DECISION BASED ON THE SHAPE: {} AND COLOUR: {}".format(shapeArray, colourArray)
 
     colour = idxClassColour[ np.argmax(colourArray) ]
 
     # Find shapes allowed by the colour and weigh them
-    availShape = np.dot(avail,color)
+    availShape = np.dot(avail,colourArray)
     # Find possibilities of getting the guessed shape and aggregate them
-    confusionShapes = np.multiply(confusion[:,shape>0],shape[shape>0])
+    confusionShapes = np.multiply(confusion[:,shapeArray>0],shapeArray[shapeArray>0])
     sums = np.sum(confusionShapes,1)
     # Pick the shape allowed by the availShape from colour information
     possibleOutcomes = np.multiply(sums,availShape)
@@ -163,8 +170,6 @@ def make_a_decision(shapeArray, colourArray):
             return "Red Cube"
         if shape=="ball":
             return "Red Ball"
-        if shape=="cylinder":
-            return "Red Cylinder"
 
         return "Red Object"
 
@@ -172,7 +177,8 @@ def handle_request(req):
     """Makes a method call to the object detector and classifier a"""
     print "Returning classes"
     global classifier
-    
+    global shapeClassIdx
+    global colourClassIdx
     object_id = req.id
 
     print "call landmark for features"
@@ -185,13 +191,17 @@ def handle_request(req):
     shape.data = "???"
     shape_features = [f for f in features if len(f.vfh) > 0]
 
-    shapeArray = np.zeros(1,7)
+    shapeArray = np.zeros(7)
     if len(shape_features) > 0:
         shape_votes = get_shape_class( shape_features )
         # idx = shape_votes.counts.index( max(shape_votes.counts) )
         # shape = shape_votes.names[idx]
+        print shapeArray
+        print shapeClassIdx
         for i,name in enumerate(shape_votes.names):
-            shapeArray[ shapeClassIdx[ name ] ] = shape_votes.counts[i]
+            print i, name.data
+            print shapeClassIdx[ name.data ]
+            shapeArray[ shapeClassIdx[ name.data ] ] = shape_votes.counts[i]
     shapeArray = shapeArray / np.sum(shapeArray)
     
     print "classify colour"
@@ -204,7 +214,7 @@ def handle_request(req):
     colour_votes = Counter( colours )
     print colour_votes
 
-    colourArray = np.zeros(1,7)
+    colourArray = np.zeros(7)
     for key, value in colour_votes.iteritems():
         colourArray[colourClassIdx[key]] = value
     colourArray = colourArray / np.sum(colourArray)
