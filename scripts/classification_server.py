@@ -164,6 +164,8 @@ def make_a_decision(shapeArray, colourArray):
     if colour=="yellow":
         if shape=="ball":
             return "Yellow Ball"
+        if shape=="cube":
+            return "Yellow Cube"
 
         return "Yellow Object"
 
