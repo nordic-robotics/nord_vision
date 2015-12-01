@@ -10,6 +10,7 @@ import rospy
 import numpy as np
 from collections import Counter
 from nord_messages.srv import EvidenceSrv
+from ras_msgs.msg import *
 import operator
 
 ros_image=None
@@ -52,7 +53,8 @@ def handle_request(req):
 	
 
 	#stuff that does out. nothing #lol
-	return EvidenceSrvResponse(1337)
+        return 1337
+	#return EvidenceSrvResponse(response)
 
 def evidence_server():
 	rospy.init_node('evidence_server_node')
