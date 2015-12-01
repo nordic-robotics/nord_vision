@@ -69,7 +69,7 @@ classes = {     1:"yellow sphere",
 colourClassIdx = {'red':0,'pruple':1,'orange':2,'green':3,'light green':4,'blue':5,'yellow':6}
 idxClassColour = {0:'red',1:'pruple',2:'orange',3:'green',4:'light green',5:'blue',6:'yellow'}
 shapeClassIdx = {'ball':0,'cross':1,'cube':2,'cylinder':3,'hollowcube':4,'star':5,'triangle':6}
-
+idxClassShape = {0:'ball',1:'cross',2:'cube',3:'cylinder',4:'hollowcube',5:'star',6:'triangle'}
 
 
 
@@ -121,7 +121,8 @@ def make_a_decision(shapeArray, colourArray):
     possibleOutcomes = np.multiply(sums,availShape)
     # Choose the row: actual shape, most probable 
     guess = np.argmax(possibleOutcomes)
-    shape = shapeClassIdx.keys()[guess]
+    #shape = shapeClassIdx.keys()[guess]
+    shape = idxClassShape[guess]
 
     if colour=="green":
         if shape=="cube":
