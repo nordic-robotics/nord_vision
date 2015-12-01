@@ -12,10 +12,14 @@ from time import time
 import numpy.random as rnd
 import cPickle
 from std_msgs.msg import String
+import rospkg
+import os
 
 class ObjectDetector:
     def __init__(self):
         self.bridge = CvBridge()
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('nord_vision')
         # Setup SimpleBlobDetector parameters.
         self.params = cv2.SimpleBlobDetector_Params()
         self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.callback)
@@ -23,7 +27,7 @@ class ObjectDetector:
         self.timeOfLastExecution = 0
 
                   #'src/nord/nord_vision/data/pixel_hue_sat'
-        with open('src/nord/nord_vision/data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl', 'rb') as fid:
+        with open(os.path.join(path,'data/pixel_hue_sat/rbf_svm_g0_0001_C464158.pkl'), 'rb') as fid:
             self.classifier = cPickle.load(fid)
 
             # This should not be hardcoed like this.
@@ -177,7 +181,7 @@ class ObjectDetector:
         
         cv2.imshow("keypoints", im_with_keypoints)
         cv2.waitKey(3)    
-        if d < 5:
+        if d < 1:
             print "returned, "
             return
         self.timeOfLastExecution = time()
