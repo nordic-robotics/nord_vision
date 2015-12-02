@@ -32,24 +32,27 @@ class ImageObjectFilter:
         self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
         self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
 
+        # Synchronizer.  This is the main shit!
         self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.pcl_CoordinateArray_sub], queue_size = 10, slop = 0.5)
         self.synchronizer.registerCallback(self.detectAndFilter)
         
+        #  We always publish to ugo, and blobs is for remote visualization.
         self.ugo_CoordinateArray_pub = rospy.Publisher("/nord/vision/ugo", CoordinateArray, queue_size=20)
         if self.pub:
             self.blobImage_pub = rospy.Publisher("/nord/vision/blobs", Image, queue_size=20)
 
-        self.boundingBoxScale = 0.7
-        self.blob_dist_scale = 2
-        self.nrSamples = 30
+        # Some parameters
+        self.boundingBoxScale = 0.7 # to make sure we don't sample colours from the background
+        self.blob_dist_scale = 2 # criteria for matching blobs with centroids, 2 may be rather high
+        self.nrSamples = 30 # of hu and sat values from the blob
+        self.lowerCropValue = 450  # we should calculate this from tilt angle
 
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
-        self.lowerCropValue = 450  # we should calculate this from tilt angle
         self.calibrationAngle, self.calibrationHeight, self.upperCropValue = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
 
-        print self.upperCropValue
-        print self.calibrationAngle
+        # print self.upperCropValue
+        # print self.calibrationAngle
  
         #Create trackbars for some parametersrosro
         #cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
