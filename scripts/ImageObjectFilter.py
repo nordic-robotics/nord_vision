@@ -205,7 +205,6 @@ class ImageObjectFilter:
         return blobs
 
     def drawCentroidOnImag(self,image,centroid):
-         
          p = (centroid.xp, centroid.yp)
          p = cv2.KeyPoint(centroid.xp,centroid.yp,100,30)
          im = cv2.drawKeypoints(image, 
@@ -260,7 +259,12 @@ class ImageObjectFilter:
         boundingBoxes = [ self.getBoundingBox(blob, hsv_image, self.boundingBoxScale) for blob in blobs ]
         features = [ self.extractColorFeature(box) for box in boundingBoxes ]
         relativeCoordinates = [ self.estimateRelativeCoordinates( blob ) for blob in blobs ]
-        objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
+
+        # Convert the image to be used as a snapshot of the object
+        rosimage = self.bridge.cv2_to_imgmsg(im_with_keypoints.astype('uint8'), "bgr8")
+
+        # Construct the message to be sent with the objects
+        objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i], rosimage ) for  i in range( nrBlobs ) ]
 
         # reformat the data as arrays
         centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in centroidsArray.data ] )
@@ -356,7 +360,7 @@ class ImageObjectFilter:
         #print [X,Y]
         return [ X, Y ]
 
-    def createCoordinate(self, blob, relativeCoordinates, feature):
+    def createCoordinate(self, blob, relativeCoordinates, feature, image):
         """Assemblers a Coordinate message"""
         c = Coordinate()
         c.x = relativeCoordinates[0]
@@ -368,6 +372,7 @@ class ImageObjectFilter:
 
         c.features.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
         c.features.splits = [len(c.features.feature)/2] # length will never be odd
+        c.moneyshot = image
         return c
                 
 def main(args):
