@@ -15,7 +15,7 @@ def crossvalidation(X,y,C_range,gamma_range):
     """performs 5-fold crossvalidation for rbf svm 
     with various gamma: smoothing constant and C: regularization"""
     param_grid = dict(gamma=gamma_range, C=C_range)
-    cv = StratifiedShuffleSplit(y, n_iter=5, test_size=0.2, random_state=42)
+    cv = StratifiedShuffleSplit(y, n_iter=2, test_size=0.2, random_state=42)
     grid = GridSearchCV(SVC(), param_grid=param_grid, cv=cv)
     grid.fit(X, y)
     return grid
@@ -23,8 +23,8 @@ def crossvalidation(X,y,C_range,gamma_range):
 def readTrainAndTestData(nr_points, nr_test_points, files, classes):
     """creates a training set of nr_points from each object
     and a test set of nr_test_points from each object. Objests are contained in files"""
-    total_nr_points = 15*nr_points
-    total_test_points = 15*nr_test_points
+    total_nr_points = 14*nr_points
+    total_test_points = 14*nr_test_points
 
     train_data = np.zeros([total_nr_points,2])
     train_targets = np.zeros(total_nr_points)
@@ -33,7 +33,7 @@ def readTrainAndTestData(nr_points, nr_test_points, files, classes):
     test_targets = np.zeros(total_test_points)
 
     for i,f in enumerate(files):
-        print f
+        #print f
         data = pd.read_csv(f,delimiter=" ")
         objectName = f[:-4]
         data = np.array(data)
@@ -47,29 +47,48 @@ def readTrainAndTestData(nr_points, nr_test_points, files, classes):
 
 
 # Files containg color data from all objects
-files = ['yellowball.txt', 'redbox.txt', 'purplestar.txt', 
-         'lightredcylinder.txt', 'yellowbox.txt', 'purplecross.txt', 
-         'lightgreencylinder.txt', 'lightgreenbox.txt', 'greenbox.txt', 
-         'orangestar.txt', 'lightbluetriangle.txt', 'redball.txt', 
-         'lightredbox.txt', 'bluebox.txt', 'orangecross.txt']
+files = ['yellowball.txt', 
+         'yellowbox.txt', 
+        'redbox.txt', 
+         'lightredcylinder.txt', 
+         'orangestar.txt', 
+         'redball.txt', 
+         'lightredbox.txt', 
+        'purplestar.txt', 
+         'purplecross.txt', 
+         'lightgreencylinder.txt', 
+         'lightgreenbox.txt', 
+         'greenbox.txt', 
+         'lightbluetriangle.txt', 
+         'bluebox.txt']
 
 # These classes are maybe incorrectly balanced since the 
 # training data is sampled equally from eache object
-classes = [1, 2, 3, 
-           2, 1, 3, 
-           8, 8, 7, 
-           4, 5, 2, 
-           2, 6, 4 ]
+classes = [1, 
+            1, 
+            2, 
+            2, 
+            2, 
+            2, 
+            2, 
+            3, 
+            3, 
+            4, 
+            4, 
+            5, 
+            6, 
+            6 ]
 
-colors = ['-1','y','r','m','k','b','b','g','g']
+colors = ['-1','y','r','m','g','g','g','b','b']
 
 ## Make the data
-nr_points = 200
-nr_test_points = 200
+nr_points = 5000
+nr_test_points = 5000
 train_data, train_targets, test_data, test_targets  = readTrainAndTestData(nr_points,
                                                                            nr_test_points, 
                                                                            files,
                                                                            classes)
+#print train_targets
 train_target_colors = [colors[i] for i in map(int,train_targets)]
 
 if False:
@@ -100,10 +119,14 @@ print("The best parameters are %s with a score of %0.5f"
 C = grid.best_params_["C"]
 gamma = grid.best_params_["gamma"]
 
+# C = 300.
+# gamma = 0.001
+
 rbf_svc = svm.SVC(kernel='rbf', gamma=gamma, C=C).fit(X, y)
 
 correct = rbf_svc.predict(test_data)
-
+score = float(sum(correct == test_targets)) / float(len(test_targets))
+print "score: " +str( score )
 if True:
     h = 1
     # create a mesh to plot in
@@ -124,6 +147,7 @@ if True:
 
     # Plot also the training points
     print "plot"
+    #print train_target_colors
     plt.scatter(X[:, 0], X[:, 1], c=train_target_colors, cmap=plt.cm.Paired)
     print "done"
     plt.xlabel('Hue')
