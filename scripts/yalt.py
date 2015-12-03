@@ -12,7 +12,7 @@ class Yalt:
 		self.all_objects = set()
 		self.object_sub = rospy.Subscriber('/nord/estimation/objects', ObjectArray, self.updateObjects, queue_size=10)
 		self.unique_objects = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
-
+		self.evidence_reporter = rospy.Service('/nord/estimation/report_evidence_service', ClassificationSrv, report_evidence)
 
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
@@ -79,6 +79,21 @@ class Yalt:
 			return classification
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
+
+	def report_evidence(self, request):
+		"""Requests Image from Landmark tracker ... """
+
+		rospy.wait_for_service('/nord/estimation/moneyshot_service')
+		try:
+			moneyshot_service = rospy.ServiceProxy('nord/estimation/moneyshot_service', REQUEST_FOR_UID) 
+			# todo: create a list of id's
+			# send to landmark tracking
+			moneyshot = moneyshot_service(request)
+			# get Image
+			# construct message
+
+
+
 
 def main(args):
     rospy.init_node('YALT', anonymous=True)
