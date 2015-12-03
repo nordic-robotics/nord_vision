@@ -12,13 +12,15 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   image_transport
   sensor_msgs
-  nord_messages
+  nord_messages  
+  ras_msgs
 )
 
 catkin_package(
   CATKIN_DEPENDS
   message_runtime
   nord_messages
+  ras_msgs
 )
 
 include_directories(
