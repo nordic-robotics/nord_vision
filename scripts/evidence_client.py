@@ -4,10 +4,12 @@ import sys
 import rospy
 from nord_messages.srv import *
 from nord_messages.msg import *
+from sensor_msgs.msg import Image
 from std_msgs.msg import String
 import numpy as np
+from ras_msgs.msg import *
 
-def evidence_client(id,classification, position):
+def evidence_client(message):
     """makes a request to the service"""
     print " wait for service"
     rospy.wait_for_service('/nord/evidence_service')
@@ -15,7 +17,7 @@ def evidence_client(id,classification, position):
     try:
         evidence_server = rospy.ServiceProxy('/nord/evidence_service', EvidenceSrv)
         print "before calling client"
-        print evidence_server(id,classification, position)
+        evidence_server(message)
         print "after calling client"
         
     except rospy.ServiceException, e:
@@ -23,11 +25,10 @@ def evidence_client(id,classification, position):
 
 if __name__ == "__main__":
 	print "evidence!!!!"
+	objectet=Object()
 	classification = String()
-	classification.data = "kaksaasd"
-	position = Vector2()	
-	position.x=6
-	position.y=11
-	id = 1
-	evidence_client(id,classification, position)
+	classification.data = "Red Cube"
+	objectet.moneyshot=Image()
+	objectet.objectId=classification
+	evidence_client(objectet)
 
