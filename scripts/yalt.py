@@ -3,16 +3,18 @@
 
 import rospy
 from nord_messages.msg import *
+from nord_messages.srv import *
 import numpy as np
 
 class Yalt:
 	def __init__(self,args):
 		self.same_object_threshold = 0.30**2#m**2
 		self.unique_objects = dict()
+		self.id_dicts = dict()
 		self.all_objects = set()
 		self.object_sub = rospy.Subscriber('/nord/estimation/objects', ObjectArray, self.updateObjects, queue_size=10)
 		self.unique_objects = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
-		self.evidence_reporter = rospy.Service('/nord/estimation/report_evidence_service', ClassificationSrv, report_evidence)
+		self.evidence_reporter = rospy.Service('/nord/vision/prompt_evidence_reporting_service', PromptEvidenceReportingSrv, self.report_evidence)
 
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
@@ -39,10 +41,12 @@ class Yalt:
 
 			if same_id == -1:  # no similar object was within sam_object_threshold
 				self.unique_objects[obj.id] = obj
+				self.id_dicts[obj.id] = [obj.id]
 			else: # Update coordinates and add the number of features
 				self.update_coordinates(same_id, obj)
 				self.unique_objects[same_id].nrObs += obj.nrObs
-				# update coordinates
+				self.id_dicts[same_id].append(obj.id)
+
 
 	def update_coordinates(self, same_id, obj):
 		"""Title! Wheighted?"""
@@ -81,16 +85,34 @@ class Yalt:
 			print "Service call failed: %s"%e
 
 	def report_evidence(self, request):
-		"""Requests Image from Landmark tracker ... """
+		"""Requests Image from Landmark tracker, attaches it to an Object message to send to 
+		the evidence server and sends it."""
+		if request.id not in self.all_objects:
+			print 'id: {}, has not been seen before'.format(request.id)
+			return
 
 		rospy.wait_for_service('/nord/estimation/moneyshot_service')
+
 		try:
-			moneyshot_service = rospy.ServiceProxy('nord/estimation/moneyshot_service', REQUEST_FOR_UID) 
-			# todo: create a list of id's
-			# send to landmark tracking
+			moneyshot_service = rospy.ServiceProxy('/nord/estimation/moneyshot_service', MoneyshotSrv) 
+			
+			# create a list of id's correspondng to the unique id
+			ids = self.id_dicts[request.id]
+			
+			# request a unified image for the id
 			moneyshot = moneyshot_service(request)
-			# get Image
+			
 			# construct message
+			o = self.unique_objects[request.id]
+			o.moneyshot = moneyshot
+
+			# request to service
+			rospy.wait_for_service('/nord/evidence_service')
+			evidence_server = rospy.ServiceProxy('/nord/evidence_service', EvidenceSrv)
+			responce = evidence_server( o )
+
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
 
 
 
