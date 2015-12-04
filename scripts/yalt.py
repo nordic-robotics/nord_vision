@@ -5,7 +5,7 @@ import rospy
 from nord_messages.msg import *
 from nord_messages.srv import *
 import numpy as np
-from vizualization_msgs.msg import Marker
+from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 class Yalt:
 	def __init__(self,args):
@@ -14,7 +14,7 @@ class Yalt:
 		self.id_dicts = dict()
 		self.all_objects = set()
 		self.object_sub = rospy.Subscriber('/nord/estimation/objects', ObjectArray, self.updateObjects, queue_size=10)
-		self.unique_objects = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
+		self.unique_objects_pub = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
 		self.evidence_reporter = rospy.Service('/nord/vision/prompt_evidence_reporting_service', PromptEvidenceReportingSrv, self.report_evidence)
 		self.vizi_pub = rospy.Publisher('/nord/map', Marker, queue_size = 1)
 
@@ -25,7 +25,7 @@ class Yalt:
 		self.add( novelObjects )
 		objectArray = ObjectArray()
 		objectArray.data = self.unique_objects.values()
-		self.unique_objects.pub( objectArray )
+		self.unique_objects_pub.publish( objectArray )
 
 		m = Marker()
 		m.id = 74
@@ -40,14 +40,14 @@ class Yalt:
 		m.lifetime = rospy.Duration();
 		m.scale.x = m.scale.y = 0.05;
 
-		for o in objectArray:
+		for o in objectArray.data:
 			p = Point()
-			p.x = o.data.x
-			p.y = o.data.y
+			p.x = o.x
+			p.y = o.y
 			p.z = 0
 			m.points.append(p)			
 
-		self.vizi_pub(m)
+		self.vizi_pub.publish(m)
 
 	
 	def add(self, novelObjects):
@@ -56,10 +56,10 @@ class Yalt:
 		appropriate.  Thus judging whether they are the same object."""
 		for obj in novelObjects:
 			self.all_objects.add(obj.id)
-			obj.objectId = self.classify(obj)
+			obj.objectId = self.classify(obj.id)
 			
 			# Find similarly classified objects
-			similar_objects = [ o for o in self.objects if o.objectId == obj.objectId ]
+			similar_objects = [ o for o in self.unique_objects.values() if o.objectId == obj.objectId ]
 			
 			# Find the id of a corresponding seen object
 			same_id = self.find_same(obj, similar_objects)
@@ -98,13 +98,13 @@ class Yalt:
 		return same_id
 
 
-	def classify(self, obj):
+	def classify(self, objId):
 		"""Call the classifier service, which handles everything with the features.
 		This may be uneccessary communication"""
 		rospy.wait_for_service('/nord/vision/classification_service')   ## can we move this to init?
 		try:
 			classification_server = rospy.ServiceProxy('/nord/vision/classification_service', ClassificationSrv) ## and this?
-			classification = classification_server(data)
+			classification = classification_server(objId)
 			return classification
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
