@@ -115,8 +115,10 @@ def make_a_decision(shapeArray, colourArray):
     # Find shapes allowed by the colour and weigh them
     availShape = np.dot(avail,colourArray)
     # Find possibilities of getting the guessed shape and aggregate them
-    confusionShapes = np.multiply(confusion[:,shapeArray>0],shapeArray[shapeArray>0])
-    sums = np.sum(confusionShapes,1)
+    # confusionShapes = np.multiply(confusion[:,shapeArray>0],shapeArray[shapeArray>0])
+    # sums = np.sum(confusionShapes,1)
+
+    sums = np.dot(confusion, shapeArray)
     # Pick the shape allowed by the availShape from colour information
     possibleOutcomes = np.multiply(sums,availShape)
     # Choose the row: actual shape, most probable 
