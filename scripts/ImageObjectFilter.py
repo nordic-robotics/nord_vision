@@ -361,7 +361,7 @@ class ImageObjectFilter:
         # The actual X and Y relative coordinates
         X = np.tan(theta) * self.calibrationHeight
         Y = X * np.tan(xAngle)  
-        #print [X,Y]
+
         return [ X, Y ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):

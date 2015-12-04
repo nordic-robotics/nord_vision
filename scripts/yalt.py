@@ -18,12 +18,14 @@ class Yalt:
 		self.unique_objects_pub = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
 		self.evidence_reporter = rospy.Service('/nord/vision/prompt_evidence_reporting_service', PromptEvidenceReportingSrv, self.report_evidence)
 		self.viz = "viz" in args
+                print self.viz
 		self.vizi_pub = rospy.Publisher('/nord/map', Marker, queue_size = 1)
 		self.image_vizi_pub = rospy.Publisher('/nord/images', Image, queue_size = 1)
-
+                print self.viz
+                
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
-		print "update objects"
+#		print "update objects"
 		novelObjects = [ o for o in objectArray.data if o.id not in self.all_objects ]
 		self.add( novelObjects )
 		objectArray = ObjectArray()
@@ -68,12 +70,16 @@ class Yalt:
 			same_id = self.find_same(obj, similar_objects)
 
 			if same_id == -1:  # no similar object was within sam_object_threshold
+                                print "found: "+str(obj.id) 
 				self.unique_objects[obj.id] = obj
 				self.id_dicts[obj.id] = [obj.id]
 				
 				if self.viz:
+                                        print "publish"
 					self.image_vizi_pub.publish(obj.moneyshot)
+                                        print "published"
 			else: # Update coordinates and add the number of features
+                                print "updated coordinates"
 				self.update_coordinates(same_id, obj)
 				self.unique_objects[same_id].nrObs += obj.nrObs
 				self.id_dicts[same_id].append(obj.id)
@@ -111,40 +117,48 @@ class Yalt:
 		try:
 			classification_server = rospy.ServiceProxy('/nord/vision/classification_service', ClassificationSrv) ## and this?
 			classification = classification_server(objId)
-			return classification
+
+			return classification.classification
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
 	def report_evidence(self, request):
 		"""Requests Image from Landmark tracker, attaches it to an Object message to send to 
 		the evidence server and sends it."""
+                print "entered reporting_evidence"
 		if request.id not in self.all_objects:
 			print 'id: {}, has not been seen before'.format(request.id)
 			return
-
+                print "wait for moneyshot_service"
 		rospy.wait_for_service('/nord/estimation/moneyshot_service')
 
 		try:
+                        print "start proxy"
 			moneyshot_service = rospy.ServiceProxy('/nord/estimation/moneyshot_service', MoneyshotSrv) 
 			
 			# create a list of id's correspondng to the unique id
 			ids = self.id_dicts[request.id]
 			
 			# request a unified image for the id
-			moneyshot = moneyshot_service(request)
+                        print "request moneyshot"
+			moneyshot = moneyshot_service(ids)
 			
 			# construct message
+                        print "construct message"
 			o = self.unique_objects[request.id]
-			o.moneyshot = moneyshot
+                        print type(o)
+			o.moneyshot = moneyshot.moneyshot
 
 			# request to service
+                        print "wait for evidence service"
 			rospy.wait_for_service('/nord/evidence_service')
+                        print "request evidence service"
 			evidence_server = rospy.ServiceProxy('/nord/evidence_service', EvidenceSrv)
 			responce = evidence_server( o )
-
+                        return 1337
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
-
+                return 0
 
 
 

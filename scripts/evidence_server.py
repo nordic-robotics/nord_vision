@@ -14,8 +14,11 @@ from ras_msgs.msg import *
 import operator
 global listan
 listan=['An Object', 'Red Cube','Blue Cube','Green Cube','Yellow Cube','Yellow Ball','Red Ball','Green Cylinder','Blue Triangle','Purple Cross', 'Purple Star', 'Patric'] 
-			
+
+global pub
+pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
 def handle_request(req):
+        global pub
 	print "in handle"
 	try:
 		#stuff i get into the service
@@ -33,8 +36,12 @@ def handle_request(req):
 		evidence.object_id=classification
 	else:
 		print('this is a problem, not an option for objects!')
-		return 0
-	pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
+		return
+        print "create publisher"
+#	pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
+        print "publish"
+        pub.publish( evidence )
+        print "published"
 	return 1337
 
 def evidence_server():
