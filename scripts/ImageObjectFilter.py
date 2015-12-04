@@ -221,7 +221,7 @@ class ImageObjectFilter:
         """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
         features from both pcl and image."""
         #print "ran"
-
+#        print "callback in image"
         try:
             centroidsArray = centroidsMessage
             rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
@@ -264,7 +264,7 @@ class ImageObjectFilter:
         relativeCoordinates = [ self.estimateRelativeCoordinates( blob ) for blob in blobs ]
 
         # Convert the image to be used as a snapshot of the object
-        rosimage = self.bridge.cv2_to_imgmsg(im_with_keypoints.astype('uint8'), "bgr8")
+        rosimage = self.bridge.cv2_to_imgmsg(rgb_image.astype('uint8'), "bgr8")
 
         # Construct the message to be sent with the objects
         objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
@@ -285,7 +285,7 @@ class ImageObjectFilter:
                     closest = closestInd[i]
                     objectArray.data[closest].features.vfh = centroidsArray.data[i].features.vfh
                     objectArray.data[closest].hull = centroidsArray.data[i].hull
-
+        print "post"
         self.ugo_CoordinateArray_pub.publish( objectArray )
 
     def getBoundingBox(self, point, image, scale = 1.0):
