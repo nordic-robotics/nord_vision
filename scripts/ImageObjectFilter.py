@@ -267,7 +267,8 @@ class ImageObjectFilter:
         rosimage = self.bridge.cv2_to_imgmsg(im_with_keypoints.astype('uint8'), "bgr8")
 
         # Construct the message to be sent with the objects
-        objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i], rosimage ) for  i in range( nrBlobs ) ]
+        objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
+        objectArray.moneyshot = rosimage
 
         # reformat the data as arrays
         centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in centroidsArray.data ] )
@@ -363,7 +364,7 @@ class ImageObjectFilter:
         #print [X,Y]
         return [ X, Y ]
 
-    def createCoordinate(self, blob, relativeCoordinates, feature, image):
+    def createCoordinate(self, blob, relativeCoordinates, feature):
         """Assemblers a Coordinate message"""
         c = Coordinate()
         c.x = relativeCoordinates[0]
@@ -375,7 +376,7 @@ class ImageObjectFilter:
 
         c.features.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
         c.features.splits = [len(c.features.feature)/2] # length will never be odd
-        c.moneyshot = image
+        
         return c
                 
 def main(args):
