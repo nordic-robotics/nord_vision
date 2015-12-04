@@ -13,8 +13,7 @@ from nord_messages.srv import EvidenceSrv
 from ras_msgs.msg import *
 import operator
 global listan
-listan=['An Object', 'Red Cube','Blue Cube','Green Cube','Yellow Cube','Yellow Ball','Red Ball','Green Cylinder','Blue Triangle','Purple Cross', 'Purple Star',
-,'Patric'] 
+listan=['An Object', 'Red Cube','Blue Cube','Green Cube','Yellow Cube','Yellow Ball','Red Ball','Green Cylinder','Blue Triangle','Purple Cross', 'Purple Star', 'Patric'] 
 			
 def handle_request(req):
 	print "in handle"
