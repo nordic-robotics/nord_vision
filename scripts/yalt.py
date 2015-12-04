@@ -7,6 +7,7 @@ from nord_messages.srv import *
 import numpy as np
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
+from sensor_msgs.msg import Image
 class Yalt:
 	def __init__(self,args):
 		self.same_object_threshold = 0.30**2#m**2
@@ -16,7 +17,9 @@ class Yalt:
 		self.object_sub = rospy.Subscriber('/nord/estimation/objects', ObjectArray, self.updateObjects, queue_size=10)
 		self.unique_objects_pub = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
 		self.evidence_reporter = rospy.Service('/nord/vision/prompt_evidence_reporting_service', PromptEvidenceReportingSrv, self.report_evidence)
+		self.viz = "viz" in args
 		self.vizi_pub = rospy.Publisher('/nord/map', Marker, queue_size = 1)
+		self.image_vizi_pub = rospy.Publisher('/nord/images', Image, queue_size = 1)
 
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
@@ -30,8 +33,8 @@ class Yalt:
 		m = Marker()
 		m.id = 74
 		m.type = Marker.POINTS
-		m.color.a = m.color.b = 1.0
-		m.color.g = m.color.r = 0.0
+		m.color.a = m.color.g = 1.0
+		m.color.b = m.color.r = 0.0
 		m.header.frame_id = "/map"
 		m.header.stamp = rospy.get_rostime()
 		m.ns = "uid"
@@ -67,6 +70,9 @@ class Yalt:
 			if same_id == -1:  # no similar object was within sam_object_threshold
 				self.unique_objects[obj.id] = obj
 				self.id_dicts[obj.id] = [obj.id]
+				
+				if self.viz:
+					self.image_vizi_pub.publish(obj.moneyshot)
 			else: # Update coordinates and add the number of features
 				self.update_coordinates(same_id, obj)
 				self.unique_objects[same_id].nrObs += obj.nrObs
