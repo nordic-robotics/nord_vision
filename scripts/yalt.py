@@ -5,7 +5,8 @@ import rospy
 from nord_messages.msg import *
 from nord_messages.srv import *
 import numpy as np
-
+from vizualization_msgs.msg import Marker
+from geometry_msgs.msg import Point
 class Yalt:
 	def __init__(self,args):
 		self.same_object_threshold = 0.30**2#m**2
@@ -15,14 +16,38 @@ class Yalt:
 		self.object_sub = rospy.Subscriber('/nord/estimation/objects', ObjectArray, self.updateObjects, queue_size=10)
 		self.unique_objects = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
 		self.evidence_reporter = rospy.Service('/nord/vision/prompt_evidence_reporting_service', PromptEvidenceReportingSrv, self.report_evidence)
+		self.vizi_pub = rospy.Publisher('/nord/map', Marker, queue_size = 1)
 
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
+		print "update objects"
 		novelObjects = [ o for o in objectArray.data if o.id not in self.all_objects ]
 		self.add( novelObjects )
 		objectArray = ObjectArray()
 		objectArray.data = self.unique_objects.values()
 		self.unique_objects.pub( objectArray )
+
+		m = Marker()
+		m.id = 74
+		m.type = Marker.POINTS
+		m.color.a = m.color.b = 1.0
+		m.color.g = m.color.r = 0.0
+		m.header.frame_id = "/map"
+		m.header.stamp = rospy.get_rostime()
+		m.ns = "uid"
+		m.action = Marker.ADD
+		m.pose.orientation.w = 1.0
+		m.lifetime = rospy.Duration();
+		m.scale.x = m.scale.y = 0.05;
+
+		for o in objectArray:
+			p = Point()
+			p.x = o.data.x
+			p.y = o.data.y
+			p.z = 0
+			m.points.append(p)			
+
+		self.vizi_pub(m)
 
 	
 	def add(self, novelObjects):
