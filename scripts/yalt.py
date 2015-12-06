@@ -144,7 +144,12 @@ class Yalt:
 			print e
 		cy = image.height / 2
 		cx = image.width / 2
-		cv2.putText(img, obj.objectId.data, (int(cy),int(cx)), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0))
+		center = (int(cy),int(cx))
+		location = (obj.yp,obj.xp)
+		cv2.putText(img, obj.objectId.data, center, cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0))
+		cv2.line(img, center, location, (0,255,0),thickness=10)
+
+
 		return self.bridge.cv2_to_imgmsg(rgb_image.astype('uint8'), "bgr8")
 		
 
