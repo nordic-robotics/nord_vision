@@ -10,7 +10,7 @@ from geometry_msgs.msg import Point
 from sensor_msgs.msg import Image
 class Yalt:
 	def __init__(self,args):
-		self.same_object_threshold = 0.30**2#m**2
+		self.same_object_threshold = 0.40**2#m**2
 		self.unique_objects = dict()
 		self.id_dicts = dict()
 		self.all_objects = set()
@@ -18,11 +18,11 @@ class Yalt:
 		self.unique_objects_pub = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
 		self.evidence_reporter = rospy.Service('/nord/vision/prompt_evidence_reporting_service', PromptEvidenceReportingSrv, self.report_evidence)
 		self.viz = "viz" in args
-                print self.viz
-		self.vizi_pub = rospy.Publisher('/nord/map', Marker, queue_size = 1)
+		print self.viz
+		self.vizi_pub = rospy.Publisher('/nord/map', Marker, queue_size = 10)
 		self.image_vizi_pub = rospy.Publisher('/nord/images', Image, queue_size = 1)
-                print self.viz
-                
+		print self.viz
+				
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
 #		print "update objects"
@@ -70,16 +70,16 @@ class Yalt:
 			same_id = self.find_same(obj, similar_objects)
 
 			if same_id == -1:  # no similar object was within sam_object_threshold
-                                print "found: "+str(obj.id) 
+				print "found: "+str(obj.id) 
 				self.unique_objects[obj.id] = obj
 				self.id_dicts[obj.id] = [obj.id]
 				
 				if self.viz:
-                                        print "publish"
+					print "publish"
 					self.image_vizi_pub.publish(obj.moneyshot)
-                                        print "published"
+					print "published"
 			else: # Update coordinates and add the number of features
-                                print "updated coordinates"
+				print "updated coordinates"
 				self.update_coordinates(same_id, obj)
 				self.unique_objects[same_id].nrObs += obj.nrObs
 				self.id_dicts[same_id].append(obj.id)
@@ -87,10 +87,12 @@ class Yalt:
 
 	def update_coordinates(self, same_id, obj):
 		"""Title! Wheighted?"""
+		print "updataed coordinates of {}".format(samme_id)
 		newObs = obj.nrObs
 		oldObs = self.unique_objects[same_id].nrObs
-		obj.x = (obj.x * newObs + self.unique_objects[same_id].x * oldObs ) / (newObs + oldObs)
-		obj.y = (obj.y * newObs + self.unique_objects[same_id].y * oldObs ) / (newObs + oldObs)
+		print "old coords: {} {}".format(self.unique_objects[same_id].x, self.unique_objects[same_id].y)
+		self.unique_objects[same_id].x = (obj.x * newObs + self.unique_objects[same_id].x * oldObs ) / (newObs + oldObs)
+		self.unique_objects[same_id].y = (obj.y * newObs + self.unique_objects[same_id].y * oldObs ) / (newObs + oldObs)
 
 
 
@@ -122,57 +124,78 @@ class Yalt:
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
+
+	def reclassify(self, uid):
+		"""Re-classify the unique object"""
+		rospy.wait_for_service('/nord/estimation/landmarks_service')
+		try:
+			pass
+		except:
+			pass
+
 	def report_evidence(self, request):
 		"""Requests Image from Landmark tracker, attaches it to an Object message to send to 
 		the evidence server and sends it."""
-                print "entered reporting_evidence"
+		print "entered reporting_evidence"
 		if request.id not in self.all_objects:
 			print 'id: {}, has not been seen before'.format(request.id)
 			return
-                print "wait for moneyshot_service"
+
+
+		### TODO: Reclassify object
+		
+
+		print "wait for moneyshot_service"
 		rospy.wait_for_service('/nord/estimation/moneyshot_service')
 
 		try:
-                        print "start proxy"
+			print "start proxy"
 			moneyshot_service = rospy.ServiceProxy('/nord/estimation/moneyshot_service', MoneyshotSrv) 
 			
 			# create a list of id's correspondng to the unique id
 			ids = self.id_dicts[request.id]
 			
 			# request a unified image for the id
-                        print "request moneyshot"
+			print "request moneyshot"
 			moneyshot = moneyshot_service(ids)
 			
 			# construct message
-                        print "construct message"
+			print "construct message"
 			o = self.unique_objects[request.id]
-                        print type(o)
+			print type(o)
 			o.moneyshot = moneyshot.moneyshot
+			if self.viz:
+				print "publish"
+				self.image_vizi_pub.publish(obj.moneyshot)
+				print "image of a ",
+				print o.objectId
+				print "published"
 
 			# request to service
-                        print "wait for evidence service"
+			print "wait for evidence service"
 			rospy.wait_for_service('/nord/evidence_service')
-                        print "request evidence service"
+			print "request evidence service"
 			evidence_server = rospy.ServiceProxy('/nord/evidence_service', EvidenceSrv)
 			responce = evidence_server( o )
-                        return 1337
+			return o.objectId
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
-                return 0
+
+		return "Reporting evidence FAILED!"
 
 
 
 def main(args):
-    rospy.init_node('YALT', anonymous=True)
-    
-    yalt = Yalt(args)
+	rospy.init_node('YALT', anonymous=True)
+	
+	yalt = Yalt(args)
 
-    rate = rospy.Rate(30)
+	rate = rospy.Rate(30)
 
-    try:
-        rospy.spin()
-    except KeyboardInterrupt:
-        print "Shutting down"
+	try:
+		rospy.spin()
+	except KeyboardInterrupt:
+		print "Shutting down"
 
 if __name__ == '__main__':
-    main(sys.argv)
+	main(sys.argv)
