@@ -159,7 +159,7 @@ class Yalt:
 		print "entered reporting_evidence"
 		if request.id not in self.all_objects:
 			print 'id: {}, has not been seen before'.format(request.id)
-			return
+			return "This Id has never been found!, exiting report_service."
 
 
 		### TODO: Reclassify object

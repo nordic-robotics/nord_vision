@@ -44,28 +44,6 @@ def readConfusionMatrix():
 
 confusion = readConfusionMatrix()
 
-objects = [ "An object", 
-                "Red Cube",
-                "Red Hollow Cube",
-                "Blue Cube",
-                "Green Cube",
-                "Yellow Cube",
-                "Yellow Ball",
-                "Red Ball",
-                "Green Cylinder",
-                "Blue Triangle",
-                "Purple Cross",
-                "Purple Star",
-                "Patric"]
-
-classes = {     1:"yellow sphere",
-                2:"red ",
-                3:"pruple",
-                4:"orange",
-                5:"blue",
-                6:"blue",
-                7:"green",
-                8:"light green"}
 colourClassIdx = {'red':0,'pruple':1,'orange':2,'green':3,'light green':4,'blue':5,'yellow':6}
 idxClassColour = {0:'red',1:'pruple',2:'orange',3:'green',4:'light green',5:'blue',6:'yellow'}
 shapeClassIdx = {'ball':0,'cross':1,'cube':2,'cylinder':3,'hollowcube':4,'star':5,'triangle':6}
@@ -104,8 +82,6 @@ def get_shape_class(vfh):
 
 
 def make_a_decision(shapeArray, colourArray):
-    global objects
-    global classes
     global idxClassColour
     global avail
     print "NOW I WILL MAKE DECISION BASED ON THE SHAPE: {} AND COLOUR: {}".format(shapeArray, colourArray)
