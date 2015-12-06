@@ -285,6 +285,8 @@ class ImageObjectFilter:
                     closest = closestInd[i]
                     objectArray.data[closest].features.vfh = centroidsArray.data[i].features.vfh
                     objectArray.data[closest].hull = centroidsArray.data[i].hull
+                    objectArray.data[closest].x = centroidsArray.data[i].x
+                    objectArray.data[closest].y = centroidsArray.data[i].y
         print "post"
         self.ugo_CoordinateArray_pub.publish( objectArray )
 
