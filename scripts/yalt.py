@@ -8,8 +8,12 @@ import numpy as np
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from sensor_msgs.msg import Image
+import cv2
+from cv_bridge import CvBridge, CvBridgeError
+
 class Yalt:
 	def __init__(self,args):
+		self.bridge = CvBridge()
 		self.same_object_threshold = 0.40**2#m**2
 		self.unique_objects = dict()
 		self.id_dicts = dict()
@@ -133,6 +137,17 @@ class Yalt:
 		except:
 			pass
 
+	def markObjectOnImage(self, image, obj):
+		try:
+			rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+		except CvBridgeError, e:
+			print e
+		cy = image.height / 2
+		cx = image.width / 2
+		cv2.putText(img, obj.objectId.data, (int(cy),int(cx)), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0))
+		return self.bridge.cv2_to_imgmsg(rgb_image.astype('uint8'), "bgr8")
+		
+
 	def report_evidence(self, request):
 		"""Requests Image from Landmark tracker, attaches it to an Object message to send to 
 		the evidence server and sends it."""
@@ -163,7 +178,7 @@ class Yalt:
 			print "construct message"
 			o = self.unique_objects[request.id]
 			print type(o)
-			o.moneyshot = moneyshot.moneyshot
+			o.moneyshot = markObjectOnImage( moneyshot.moneyshot, o )
 			if self.viz:
 				print "publish"
 				self.image_vizi_pub.publish(o.moneyshot)
