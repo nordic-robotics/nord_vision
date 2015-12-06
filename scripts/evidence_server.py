@@ -27,7 +27,7 @@ def handle_request(req):
 
 	except Exception, e:
 		print e
-	
+                return 666
 	evidence=RAS_Evidence()
 	evidence.group_number=2
 	evidence.stamp= rospy.Time.now()
@@ -36,7 +36,7 @@ def handle_request(req):
 		evidence.object_id=classification
 	else:
 		print('this is a problem, not an option for objects!')
-		return
+		return 666
         print "create publisher"
 #	pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
         print "publish"
