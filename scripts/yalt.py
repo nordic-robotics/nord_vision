@@ -49,7 +49,7 @@ class Yalt:
 			p = Point()
 			p.x = o.x
 			p.y = o.y
-			p.z = 0
+			p.z = 0.05
 			m.points.append(p)			
 
 		self.vizi_pub.publish(m)
@@ -87,7 +87,7 @@ class Yalt:
 
 	def update_coordinates(self, same_id, obj):
 		"""Title! Wheighted?"""
-		print "updataed coordinates of {}".format(samme_id)
+		print "updataed coordinates of {}".format(same_id)
 		newObs = obj.nrObs
 		oldObs = self.unique_objects[same_id].nrObs
 		print "old coords: {} {}".format(self.unique_objects[same_id].x, self.unique_objects[same_id].y)
@@ -166,7 +166,7 @@ class Yalt:
 			o.moneyshot = moneyshot.moneyshot
 			if self.viz:
 				print "publish"
-				self.image_vizi_pub.publish(obj.moneyshot)
+				self.image_vizi_pub.publish(o.moneyshot)
 				print "image of a ",
 				print o.objectId
 				print "published"
@@ -177,7 +177,7 @@ class Yalt:
 			print "request evidence service"
 			evidence_server = rospy.ServiceProxy('/nord/evidence_service', EvidenceSrv)
 			responce = evidence_server( o )
-			return o.objectId
+			return o.objectId.data
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
 
