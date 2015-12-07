@@ -135,14 +135,18 @@ class Yalt:
 		because we way have gathered more data on the objects.
 		This is weak. We should combine all features into one and classify them as one."""
 		ids = self.id_dicts[uid]
-		classification_votes = Counter( [ self.classify(i).data for i in ids ] )
-		classification = max(classification_votes.iteritems(), key=operator.itemgetter(1))[0]
-		return classification
-		# rospy.wait_for_service('/nord/estimation/landmarks_service')
-		# try:
-		# 	pass
-		# except rospy.ServiceException, e:
-		# 	print "Service call failed: %s"%e
+		# classification_votes = Counter( [ self.classify(i).data for i in ids ] )
+		# classification = max(classification_votes.iteritems(), key=operator.itemgetter(1))[0]
+		# return classification
+		rospy.wait_for_service('/nord/vision/re_classify_service')
+		try:
+ 			re_classify_service = rospy.ServiceProxy('/nord/vision/re_classify_service', ReClassifySrv)
+ 			return re_classify_service(ids)
+		except rospy.ServiceException, e:
+			print "Service call failed: %s"%e
+		return
+		
+
 
 	def markObjectOnImage(self, image, obj):
 		try:
@@ -152,13 +156,13 @@ class Yalt:
 		cy = image.height / 2
 		cx = image.width / 2
 		center = (int(cx),int(cy))
-                center = (50,50)
+		center = (50,50)
 		location = (obj.xp, obj.yp)
-                print "cx: {}, cy: {}".format(cx,cy)
-                print "location: {}".format(location)
+		print "cx: {}, cy: {}".format(cx,cy)
+		print "location: {}".format(location)
 		cv2.line(rgb_image, center, location, (0,0,0),thickness=7)
-                #cv2.line(rgb_image, (0,0), (100,200), (255,0,0),thickness=7)
-                #cv2.line(rgb_image, (0,0), (200,100), (255,255,255),thickness=7)
+		#cv2.line(rgb_image, (0,0), (100,200), (255,0,0),thickness=7)
+		#cv2.line(rgb_image, (0,0), (200,100), (255,255,255),thickness=7)
 		cv2.putText(rgb_image, obj.objectId.data, center, cv2.FONT_HERSHEY_SIMPLEX, 1, (50,50,50), thickness=3)
 
 
@@ -175,6 +179,7 @@ class Yalt:
 
 
 		### TODO: Reclassify object
+		new_class = reClassify( request.id )
 		
 
 		print "wait for moneyshot_service"

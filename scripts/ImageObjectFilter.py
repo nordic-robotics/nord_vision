@@ -118,7 +118,8 @@ class ImageObjectFilter:
         pass
 
     def getParams(self):
-        """Updates simple blob detector parameters with values on set on the trackbar"""
+        """Updates simple blob detector parameters with values on set on the trackbar.
+        Only used when run with the argument: viz"""
          # Change thresholds                                                   
         self.params.minThreshold = cv2.getTrackbarPos('minThresh','bars')
         self.params.maxThreshold = cv2.getTrackbarPos('maxThresh','bars')
@@ -148,19 +149,8 @@ class ImageObjectFilter:
         # Distance
         self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
-    # def joinBlobs(self, rgb_blobs, hsv_blobs):
-    #     """"""
-
-    #     blobs = np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in (rgb_blobs + hsv_blobs) ] )
-    #     dists = cdist( blobs[:,:2],  blobs[:,:2] , 'euclidean')
-    #     thresholds = blobs[:,:,2]
-
-    #     closestInd = np.argmin( dists, 1 )
-    #     connected = dists[ range(blobs), closestInd ] < blobs[ closestInd, 2 ]
-
-
     def detectBlobs(self,rgb_image,hsv_image):
-        """Uses simple blob detector on a smoothed rgb_image, crops away the base of the robot.
+        """Uses simple blob detector on a s-channel from a smoothed rgb_image, crops away the base of the robot.
         Also draws and displays detected blobs if the the module is launched with the argument viz."""
         
         if self.viz:
@@ -218,10 +208,9 @@ class ImageObjectFilter:
          return im 
 
     def detectAndFilter(self, image, centroidsMessage):
-        """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
-        features from both pcl and image."""
-        #print "ran"
-#        print "callback in image"
+        """Detects blobs and compares them to pcl centroids image coordinates.  
+        Matches each centroid to it's closest blob and assigns the blob it's features.
+        Reposts all objects detected with features from both pcl and image."""
         try:
             centroidsArray = centroidsMessage
             rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
@@ -298,13 +287,10 @@ class ImageObjectFilter:
         minr = int(max(0,point.pt[1] - size))
         maxr = int(min(480,minr + 2*size))
 
-        #cv2.imshow("d",image[ minr:maxr, minc:maxc, :])
-
         return image[ minr:maxr, minc:maxc, :]
 
     def extractColorFeature(self, image):
-        """Only hue and sat for now gaussian sampled from the center of the image. This may be unsafe
-        """
+        """Only hue and sat for now sampled uniformly from within the bounding box."""
         # mu = [ m/2 for m in image.shape[:2] ]
         # s = [ m/2 for m in mu ]
         # S = [[s[0] ,0],[0, s[1]]]
@@ -374,7 +360,7 @@ class ImageObjectFilter:
         c.z = 0
 
         c.xp = int(blob.pt[0])
-        c.yp = int(blob.pt[1]) #+ self.upperCropValue
+        c.yp = int(blob.pt[1])
 
         c.features.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
         c.features.splits = [len(c.features.feature)/2] # length will never be odd
