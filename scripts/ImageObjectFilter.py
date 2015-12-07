@@ -246,7 +246,7 @@ class ImageObjectFilter:
             im_with_keypoints = cv2.drawKeypoints(rgb_image,
                                                   blobs,
                                                   np.array([]),
-                                                  (255,0,0),
+                                                  (255,0,255),
                                                   cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             self.blobImage_pub.publish(self.bridge.cv2_to_imgmsg(im_with_keypoints.astype('uint8'), "bgr8"))
             

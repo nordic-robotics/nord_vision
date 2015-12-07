@@ -150,6 +150,8 @@ class Yalt:
                 print "cx: {}, cy: {}".format(cx,cy)
                 print "location: {}".format(location)
 		cv2.line(rgb_image, center, location, (0,0,0),thickness=7)
+                #cv2.line(rgb_image, (0,0), (100,200), (255,0,0),thickness=7)
+                #cv2.line(rgb_image, (0,0), (200,100), (255,255,255),thickness=7)
 		cv2.putText(rgb_image, obj.objectId.data, center, cv2.FONT_HERSHEY_SIMPLEX, 1, (50,50,50), thickness=3)
 
 
