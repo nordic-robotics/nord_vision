@@ -8,6 +8,7 @@ import numpy as np
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from sensor_msgs.msg import Image
+from collections import Counter
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -129,13 +130,19 @@ class Yalt:
 			print "Service call failed: %s"%e
 
 
-	def reclassify(self, uid):
-		"""Re-classify the unique object"""
-		rospy.wait_for_service('/nord/estimation/landmarks_service')
-		try:
-			pass
-		except:
-			pass
+	def reClassify(self, uid):
+		"""Re-classify the unique object.  Currently just reclassifying all similar objects and voting again.
+		because we way have gathered more data on the objects.
+		This is weak. We should combine all features into one and classify them as one."""
+		ids = self.id_dicts[uid]
+		classification_votes = Counter( [ self.classify(i).data for i in ids ] )
+		classification = max(classification_votes.iteritems(), key=operator.itemgetter(1))[0]
+		return classification
+		# rospy.wait_for_service('/nord/estimation/landmarks_service')
+		# try:
+		# 	pass
+		# except rospy.ServiceException, e:
+		# 	print "Service call failed: %s"%e
 
 	def markObjectOnImage(self, image, obj):
 		try:
@@ -153,7 +160,6 @@ class Yalt:
                 #cv2.line(rgb_image, (0,0), (100,200), (255,0,0),thickness=7)
                 #cv2.line(rgb_image, (0,0), (200,100), (255,255,255),thickness=7)
 		cv2.putText(rgb_image, obj.objectId.data, center, cv2.FONT_HERSHEY_SIMPLEX, 1, (50,50,50), thickness=3)
-
 
 
 		return self.bridge.cv2_to_imgmsg(rgb_image.astype('uint8'), "bgr8")
@@ -189,7 +195,10 @@ class Yalt:
 			print "construct message"
 			o = self.unique_objects[request.id]
 			print type(o)
+
 			o.moneyshot = self.markObjectOnImage( moneyshot.moneyshot, o )
+			#o.objectId.data = reClassify(request.id)
+
 			if self.viz:
 				print "publish"
 				self.image_vizi_pub.publish(o.moneyshot)
