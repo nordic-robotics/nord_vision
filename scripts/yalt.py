@@ -144,10 +144,14 @@ class Yalt:
 			print e
 		cy = image.height / 2
 		cx = image.width / 2
-		center = (int(cy),int(cx))
-		location = (obj.yp,obj.xp)
-		cv2.putText(img, obj.objectId.data, center, cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0))
-		cv2.line(img, center, location, (0,255,0),thickness=10)
+		center = (int(cx),int(cy))
+                center = (50,50)
+		location = (obj.xp, obj.yp)
+                print "cx: {}, cy: {}".format(cx,cy)
+                print "location: {}".format(location)
+		cv2.line(rgb_image, center, location, (0,0,0),thickness=7)
+		cv2.putText(rgb_image, obj.objectId.data, center, cv2.FONT_HERSHEY_SIMPLEX, 1, (50,50,50), thickness=3)
+
 
 
 		return self.bridge.cv2_to_imgmsg(rgb_image.astype('uint8'), "bgr8")
@@ -183,7 +187,7 @@ class Yalt:
 			print "construct message"
 			o = self.unique_objects[request.id]
 			print type(o)
-			o.moneyshot = markObjectOnImage( moneyshot.moneyshot, o )
+			o.moneyshot = self.markObjectOnImage( moneyshot.moneyshot, o )
 			if self.viz:
 				print "publish"
 				self.image_vizi_pub.publish(o.moneyshot)

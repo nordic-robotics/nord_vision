@@ -272,7 +272,7 @@ class ImageObjectFilter:
 
         # reformat the data as arrays
         centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in centroidsArray.data ] )
-        blobs =     np.array( [ [ blob.pt[0], blob.pt[1] + self.upperCropValue , blob.size ] for blob in blobs ] )
+        blobs =     np.array( [ [ blob.pt[0], blob.pt[1] + self.upperCropValue, blob.size ] for blob in blobs ] )
 
         # If a centroid lies within a blob we regard it as an object and filter debris away
         if nrCentroids > 0:
@@ -374,7 +374,7 @@ class ImageObjectFilter:
         c.z = 0
 
         c.xp = int(blob.pt[0])
-        c.yp = int(blob.pt[1]) + self.upperCropValue
+        c.yp = int(blob.pt[1]) #+ self.upperCropValue
 
         c.features.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
         c.features.splits = [len(c.features.feature)/2] # length will never be odd
