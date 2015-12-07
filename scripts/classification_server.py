@@ -16,6 +16,8 @@ import rospkg
 
 # global hack variables
 classifier = HueSatClass()
+
+# Availability matrix   nr_shapes X nr_colours 
 avail = np.array([[1,0,0,0,0,0,1],
                   [0,1,0,0,0,0,0],
                   [1,0,0,1,0,1,1],
@@ -80,8 +82,21 @@ def get_shape_class(vfh):
     except rospy.ServiceException, e:
         print "Shape classifications call failed: %s"%e
 
+def get_multi_features(ids):
+    rospy.wait_for_service('/nord/estimation/multi_landmarks_service')
+    try:
+        multi_landmarks_server = rospy.ServiceProxy('/nord/estimation/multi_landmarks_service', MultiLandmarksSrv)
+        features = multi_landmarks_server(ids)
+        return features.multifeatures
+    except rospy.ServiceException, e:
+        print "Shape classifications call failed: %s"%e
+    
+
+
 
 def make_a_decision(shapeArray, colourArray):
+    """Uses the measured colour and shape information in combination with their available combinations
+    and shape confusion matrix to decide the most probable object class."""
     global idxClassColour
     global avail
     print "NOW I WILL MAKE DECISION BASED ON THE SHAPE: {} AND COLOUR: {}".format(shapeArray, colourArray)
@@ -107,11 +122,15 @@ def make_a_decision(shapeArray, colourArray):
     print "complex method"
 
     probs = np.transpose(np.multiply(np.transpose(np.multiply(colourArray,avail)),possibleOutcomes))
-    idx = np.where(probs==np.max(probs))
+    maxValue = np.max(probs)
+    idx = np.where(probs==maxValue)
     shape = idxClassShape[idx[0][0]]
     colour = idxClassColour[idx[1][0]]
     print "guessed colour: {}".format(shape2)
     print "guessed shape: {}".format(colour2)
+    print "COMPLEX METHOD GIVES THE MAX VALUE: {}".format(np.max(probs))
+    print "L(sc|SC): "
+    print probs
 
     if shape != shape2 or colour != colour2:
         print "#####################################################"
@@ -170,20 +189,11 @@ def make_a_decision(shapeArray, colourArray):
 
         return "Red Object"
 
-def handle_request(req):
-    """Makes a method call to the object detector and classifier a"""
-    print "Returning classes"
+def classify(features):
     global classifier
     global shapeClassIdx
     global colourClassIdx
-    object_id = req.id
 
-    print "call landmark for features"
-    ## CALL LANDMARK SERVICE FOR FEATURES
-    features = get_features_from_landmarks(object_id)
-
-    print "classify shape"
-    ## CALL FLANN SERVICE FOR SHAPE
     shape = String()
     shape.data = "???"
     shape_features = [f for f in features if len(f.vfh) > 0]
@@ -191,8 +201,6 @@ def handle_request(req):
     shapeArray = np.zeros(7)
     if len(shape_features) > 0:
         shape_votes = get_shape_class( shape_features )
-        # idx = shape_votes.counts.index( max(shape_votes.counts) )
-        # shape = shape_votes.names[idx]
         print shapeArray
         print shapeClassIdx
         for i,name in enumerate(shape_votes.names):
@@ -221,8 +229,69 @@ def handle_request(req):
     decision = make_a_decision(shapeArray, colourArray)
     # decision = make_a_decision(shape.data, colour)
 
-    response = shape   
-    response.data = decision
+    return decision
+
+def re_classify(req):
+    print "call get_multi_features"
+    features = get_multi_features(req.ids)
+    return classify( features )
+
+    
+
+def handle_request(req):
+    """Makes a method call to the object detector and classifier a"""
+    print "Returning classes"
+    # global classifier
+    # global shapeClassIdx
+    # global colourClassIdx
+    object_id = req.id
+
+    print "call landmark for features"
+    ## CALL LANDMARK SERVICE FOR FEATURES
+    features = get_features_from_landmarks(object_id)
+
+    # print "classify shape"
+    # ## CALL FLANN SERVICE FOR SHAPE
+    # shape = String()
+    # shape.data = "???"
+    # shape_features = [f for f in features if len(f.vfh) > 0]
+
+    # shapeArray = np.zeros(7)
+    # if len(shape_features) > 0:
+    #     shape_votes = get_shape_class( shape_features )
+    #     # idx = shape_votes.counts.index( max(shape_votes.counts) )
+    #     # shape = shape_votes.names[idx]
+    #     print shapeArray
+    #     print shapeClassIdx
+    #     for i,name in enumerate(shape_votes.names):
+    #         print i, name.data
+    #         print shapeClassIdx[ name.data ]
+    #         shapeArray[ shapeClassIdx[ name.data ] ] = shape_votes.counts[i]
+    # shapeArray = shapeArray / np.sum(shapeArray)
+    
+    # print "classify colour"
+    # ## USE CLASSIFIER FOR COLOUR
+    # huesats = [ np.array(f.feature).reshape(2,f.splits[0]) for f in features ]
+    # colours = [ classifier.classify( np.transpose( hs ) ) for hs in huesats ]
+
+    # print "sum up classifications"
+    # ## SUM UP THE CLASSIFICATION
+    # colour_votes = Counter( colours )
+    # print colour_votes
+
+    # colourArray = np.zeros(7)
+    # for key, value in colour_votes.iteritems():
+    #     colourArray[colourClassIdx[key]] = value
+    # colourArray = colourArray / np.sum(colourArray)
+
+    # # colour = max(colour_votes.iteritems(), key=operator.itemgetter(1))[0]
+
+    # decision = make_a_decision(shapeArray, colourArray)
+    # # decision = make_a_decision(shape.data, colour)
+
+    # response = shape   
+    response = String()
+    response.data = classify( features )
     return ClassificationSrvResponse( response )
 
 
@@ -230,6 +299,7 @@ def handle_request(req):
 def classification_server():
     rospy.init_node('classification_server_node')
     s = rospy.Service('/nord/vision/classification_service', ClassificationSrv, handle_request)
+    rs = rospy.Service('/nord/vision/re_classify_service',ReClassifySrv, re_classify)
     print "Ready to classify hues and sats and shape."
     rospy.spin()
 
