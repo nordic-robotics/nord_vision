@@ -86,7 +86,7 @@ def make_a_decision(shapeArray, colourArray):
     global avail
     print "NOW I WILL MAKE DECISION BASED ON THE SHAPE: {} AND COLOUR: {}".format(shapeArray, colourArray)
 
-    colour = idxClassColour[ np.argmax(colourArray) ]
+    colour2 = idxClassColour[ np.argmax(colourArray) ]
 
     # Find shapes allowed by the colour and weigh them
     availShape = np.dot(avail,colourArray)
@@ -100,18 +100,23 @@ def make_a_decision(shapeArray, colourArray):
     # Choose the row: actual shape, most probable 
     guess = np.argmax(possibleOutcomes)
     #shape = shapeClassIdx.keys()[guess]
-    shape = idxClassShape[guess]
+    shape2 = idxClassShape[guess]
     print "simple method:"
-    print "guessed colour: {}".format(shape)
-    print "guessed shape: {}".format(colour)
+    print "guessed colour: {}".format(shape2)
+    print "guessed shape: {}".format(colour2)
     print "complex method"
 
     probs = np.transpose(np.multiply(np.transpose(np.multiply(colourArray,avail)),possibleOutcomes))
     idx = np.where(probs==np.max(probs))
-    shape2 = idxClassShape[idx[0][0]]
-    colour2 = idxClassColour[idx[1][0]]
+    shape = idxClassShape[idx[0][0]]
+    colour = idxClassColour[idx[1][0]]
     print "guessed colour: {}".format(shape2)
     print "guessed shape: {}".format(colour2)
+
+    if shape != shape2 or colour != colour2:
+        print "#####################################################"
+        print "                   METHODS DIFFER                    "
+        print "#####################################################"
 
     if colour=="green":
         if shape=="cube":
