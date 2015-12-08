@@ -28,6 +28,15 @@ class ImageObjectFilter:
         self.params = cv2.SimpleBlobDetector_Params()
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
+        # Some parameters
+        self.boundingBoxScale = 0.7 # to make sure we don't sample colours from the background
+        self.blob_dist_scale = 2 # criteria for matching blobs with centroids, 2 may be rather high
+        self.nrSamples = 30 # of hu and sat values from the blob
+        self.lowerCropValue = 450  # we should calculate this from tilt angle
+
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('nord_vision')
+        self.calibrationAngle, self.calibrationHeight, self.upperCropValue = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
         
         self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
         self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
@@ -41,15 +50,6 @@ class ImageObjectFilter:
         if self.pub:
             self.blobImage_pub = rospy.Publisher("/nord/vision/blobs", Image, queue_size=20)
 
-        # Some parameters
-        self.boundingBoxScale = 0.7 # to make sure we don't sample colours from the background
-        self.blob_dist_scale = 2 # criteria for matching blobs with centroids, 2 may be rather high
-        self.nrSamples = 30 # of hu and sat values from the blob
-        self.lowerCropValue = 450  # we should calculate this from tilt angle
-
-        rospack = rospkg.RosPack()
-        path = rospack.get_path('nord_vision')
-        self.calibrationAngle, self.calibrationHeight, self.upperCropValue = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
 
         # print self.upperCropValue
         # print self.calibrationAngle
