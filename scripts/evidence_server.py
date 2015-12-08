@@ -13,12 +13,14 @@ from nord_messages.srv import EvidenceSrv
 from ras_msgs.msg import *
 import operator
 global listan
-listan=['An Object', 'Red Cube','Blue Cube','Green Cube','Yellow Cube','Yellow Ball','Red Ball','Green Cylinder','Blue Triangle','Purple Cross', 'Purple Star', 'Patric', 'Red Hollow Cube'] 
+listan=['An Object', 'Red Cube','Blue Cube','Green Cube','Yellow Cube','Yellow Ball','Red Ball','Green Cylinder','Blue Triangle','Purple Cross', 'Purple Star', 'Patric', 'Red Hollow Cube']
+global deklarerade
+deklarerade=[] 
 
 global pub
 pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
 def handle_request(req):
-        global pub
+        global pub, deklarerade, listan
 	print "in handle"
 	try:
 		#stuff i get into the service
@@ -26,6 +28,7 @@ def handle_request(req):
 		x=req.data.x
 		y=req.data.y
 		image=req.data.moneyshot
+		id=req.data.id
 
 	except Exception, e:
 		print e
@@ -36,10 +39,11 @@ def handle_request(req):
 	evidence.image_evidence=image
 	evidence.object_location.transform.translation.x=x
 	evidence.object_location.transform.translation.y=y
-	if (classification in listan):
+	if (classification in listan and id not in deklarerade):
 		evidence.object_id=classification
+		deklarerade.append(id)
 	else:
-		print('this is a problem, not an option for objects!')
+		print('this is a problem, not an option for objects OR object has already been declared!')
 		return 666
         print "create publisher"
 #	pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)

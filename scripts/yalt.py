@@ -209,6 +209,8 @@ class Yalt:
 				self.image_vizi_pub.publish(o.moneyshot)
 				print "image of a ",
 				print o.objectId.data
+                                print "new_class: ",
+                                print new_class
 				print "published"
 
 			# request to service
