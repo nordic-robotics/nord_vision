@@ -179,7 +179,7 @@ class Yalt:
 
 
 		### TODO: Reclassify object
-		new_class = reClassify( request.id )
+		new_class = self.reClassify( request.id )
 		
 
 		print "wait for moneyshot_service"
@@ -208,7 +208,7 @@ class Yalt:
 				print "publish"
 				self.image_vizi_pub.publish(o.moneyshot)
 				print "image of a ",
-				print o.objectId
+				print o.objectId.data
 				print "published"
 
 			# request to service
