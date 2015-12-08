@@ -11,6 +11,8 @@ from sensor_msgs.msg import Image
 from collections import Counter
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+import rospkg
+import os
 
 class Yalt:
 	def __init__(self,args):
@@ -28,11 +30,14 @@ class Yalt:
 		self.vizi_pub = rospy.Publisher('/nord/map', Marker, queue_size = 10)
 		self.image_vizi_pub = rospy.Publisher('/nord/images', Image, queue_size = 1)
 		print self.viz
+                rospack = rospkg.RosPack()
+                self.path = os.path.join(rospack.get_path('nord_vision'),"data/object.txt")
+
 				
 
 
 	def createDebrisMsg(self, obj):
-		o = Object()
+		o = Debris()
 		o.x = obj.x
 		o.y = obj.y
 		return o
@@ -192,7 +197,7 @@ class Yalt:
 
 
 		### TODO: Reclassify object
-		new_class = self.reClassify( request.id )
+#		new_class = self.reClassify( request.id )
 		
 
 		print "wait for moneyshot_service"
@@ -222,8 +227,8 @@ class Yalt:
 				self.image_vizi_pub.publish(o.moneyshot)
 				print "image of a ",
 				print o.objectId.data
-                                print "new_class: ",
-                                print new_class
+                                #print "new_class: ",
+                                #print new_class
 				print "published"
 
 			# request to service
@@ -232,6 +237,10 @@ class Yalt:
 			print "request evidence service"
 			evidence_server = rospy.ServiceProxy('/nord/evidence_service', EvidenceSrv)
 			responce = evidence_server( o )
+                        
+                        with open(self.path,'a') as myfile:
+                                position =  "{:.2f} {:.2f} {}\n".format(o.x,o.y,o.objectId.data)  
+                                myfile.write(position)
 			return o.objectId.data
 		except rospy.ServiceException, e:
 			print "Service call failed: %s"%e
