@@ -30,5 +30,7 @@ if __name__ == "__main__":
 	classification.data = "Red Cube"
 	objectet.moneyshot=Image()
 	objectet.objectId=classification
+	objectet.data.x=0
+	objectet.data.y=0
 	evidence_client(objectet)
 

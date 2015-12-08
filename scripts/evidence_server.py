@@ -23,6 +23,8 @@ def handle_request(req):
 	try:
 		#stuff i get into the service
 		classification= req.data.objectId.data
+		x=req.data.x
+		y=req.data.y
 		image=req.data.moneyshot
 
 	except Exception, e:
@@ -32,6 +34,8 @@ def handle_request(req):
 	evidence.group_number=2
 	evidence.stamp= rospy.Time.now()
 	evidence.image_evidence=image
+	evidence.object_location.transform.translation.x=x
+	evidence.object_location.transform.translation.y=y
 	if (classification in listan):
 		evidence.object_id=classification
 	else:
