@@ -17,7 +17,7 @@ import os
 class Yalt:
 	def __init__(self,args):
 		self.bridge = CvBridge()
-		self.same_object_threshold = 0.40**2#m**2
+		self.same_object_threshold = 0.20**2#m**2
 		self.unique_objects = dict()
 		self.id_dicts = dict()
 		self.all_objects = set()
