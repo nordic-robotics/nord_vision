@@ -21,6 +21,7 @@ class Yalt:
 		self.all_objects = set()
 		self.object_sub = rospy.Subscriber('/nord/estimation/objects', ObjectArray, self.updateObjects, queue_size=10)
 		self.unique_objects_pub = rospy.Publisher("/nord/vision/igo", ObjectArray, queue_size=20)
+		self.object_debris_pub = rospy.Publisher("/nord/estimation/debris", DebrisArray, queue_size=20)
 		self.evidence_reporter = rospy.Service('/nord/vision/prompt_evidence_reporting_service', PromptEvidenceReportingSrv, self.report_evidence)
 		self.viz = "viz" in args
 		print self.viz
@@ -28,6 +29,14 @@ class Yalt:
 		self.image_vizi_pub = rospy.Publisher('/nord/images', Image, queue_size = 1)
 		print self.viz
 				
+
+
+	def createDebrisMsg(self, obj):
+		o = Object()
+		o.x = obj.x
+		o.y = obj.y
+		return o
+
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
 #		print "update objects"
@@ -36,6 +45,10 @@ class Yalt:
 		objectArray = ObjectArray()
 		objectArray.data = self.unique_objects.values()
 		self.unique_objects_pub.publish( objectArray )
+
+		debrisArray = DebrisArray()
+		debrisArray.data = [self.createDebrisMsg( o ) for o in self.unique_objects.values() ]
+		self.object_debris_pub.publish( debrisArray )
 
 		m = Marker()
 		m.id = 74
