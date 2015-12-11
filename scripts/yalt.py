@@ -44,7 +44,7 @@ class Yalt:
 
 	def updateObjects(self, objectArray):
 		"""Filters out seen objects from the message and adds the novel ones."""
-#		print "update objects"
+		print "update objects"
 		novelObjects = [ o for o in objectArray.data if o.id not in self.all_objects ]
 		self.add( novelObjects )
 		objectArray = ObjectArray()
