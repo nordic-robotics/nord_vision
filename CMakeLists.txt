@@ -21,6 +21,7 @@ catkin_package(
   CATKIN_DEPENDS
   message_runtime
   nord_messages
+  ras_msgs
 )
 
 include_directories(

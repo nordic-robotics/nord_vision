@@ -32,7 +32,9 @@ def handle_request(req):
 
 	except Exception, e:
 		print e
-                return 666
+        return 666
+
+	
 	evidence=RAS_Evidence()
 	evidence.group_number=2
 	evidence.stamp= rospy.Time.now()
@@ -50,6 +52,12 @@ def handle_request(req):
         print "publish"
         pub.publish( evidence )
         print "published"
+	if (classification in listan):
+		evidence.object_id=classification
+	else:
+		print('this is a problem, not an option for objects!')
+		return 0
+	pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
 	return 1337
 
 def evidence_server():
