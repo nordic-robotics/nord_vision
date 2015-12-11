@@ -13,23 +13,45 @@ from nord_messages.srv import EvidenceSrv
 from ras_msgs.msg import *
 import operator
 global listan
-listan=['An Object', 'Red Cube','Blue Cube','Green Cube','Yellow Cube','Yellow Ball','Red Ball','Green Cylinder','Blue Triangle','Purple Cross'
-,'Patric'] 
-			
+listan=['An Object', 'Red Cube','Blue Cube','Green Cube','Yellow Cube','Yellow Ball','Red Ball','Green Cylinder','Blue Triangle','Purple Cross', 'Purple Star', 'Patric', 'Red Hollow Cube']
+global deklarerade
+deklarerade=[] 
+
+global pub
+pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
 def handle_request(req):
+        global pub, deklarerade, listan
 	print "in handle"
 	try:
 		#stuff i get into the service
 		classification= req.data.objectId.data
+		x=req.data.x
+		y=req.data.y
 		image=req.data.moneyshot
+		id=req.data.id
 
 	except Exception, e:
 		print e
+        return 666
+
 	
 	evidence=RAS_Evidence()
 	evidence.group_number=2
 	evidence.stamp= rospy.Time.now()
 	evidence.image_evidence=image
+	evidence.object_location.transform.translation.x=x
+	evidence.object_location.transform.translation.y=y
+	if (classification in listan and id not in deklarerade):
+		evidence.object_id=classification
+		deklarerade.append(id)
+	else:
+		print('this is a problem, not an option for objects OR object has already been declared!')
+		return 666
+        print "create publisher"
+#	pub = rospy.Publisher("/evidence", RAS_Evidence, queue_size=20)
+        print "publish"
+        pub.publish( evidence )
+        print "published"
 	if (classification in listan):
 		evidence.object_id=classification
 	else:

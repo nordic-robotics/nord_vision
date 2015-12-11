@@ -28,28 +28,31 @@ class ImageObjectFilter:
         self.params = cv2.SimpleBlobDetector_Params()
         rospack = rospkg.RosPack()
         path = rospack.get_path('nord_vision')
+        # Some parameters
+        self.boundingBoxScale = 0.7 # to make sure we don't sample colours from the background
+        self.blob_dist_scale = 2 # criteria for matching blobs with centroids, 2 may be rather high
+        self.nrSamples = 30 # of hu and sat values from the blob
+        self.lowerCropValue = 450  # we should calculate this from tilt angle
+
+        rospack = rospkg.RosPack()
+        path = rospack.get_path('nord_vision')
+        self.calibrationAngle, self.calibrationHeight, self.upperCropValue = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
         
         self.image_sub = message_filters.Subscriber("/camera/rgb/image_raw", Image)
         self.pcl_CoordinateArray_sub = message_filters.Subscriber("/nord/pointcloud/centroids", CoordinateArray)
 
+        # Synchronizer.  This is the main shit!
         self.synchronizer = message_filters.ApproximateTimeSynchronizer([self.image_sub, self.pcl_CoordinateArray_sub], queue_size = 10, slop = 0.5)
         self.synchronizer.registerCallback(self.detectAndFilter)
         
+        #  We always publish to ugo, and blobs is for remote visualization.
         self.ugo_CoordinateArray_pub = rospy.Publisher("/nord/vision/ugo", CoordinateArray, queue_size=20)
         if self.pub:
             self.blobImage_pub = rospy.Publisher("/nord/vision/blobs", Image, queue_size=20)
 
-        self.boundingBoxScale = 0.7
-        self.blob_dist_scale = 2
-        self.nrSamples = 30
 
-        rospack = rospkg.RosPack()
-        path = rospack.get_path('nord_vision')
-        self.lowerCropValue = 450  # we should calculate this from tilt angle
-        self.calibrationAngle, self.calibrationHeight, self.upperCropValue = self.readCalibration(os.path.join(path,"../nord_pointcloud/data/calibration.txt"))
-
-        print self.upperCropValue
-        print self.calibrationAngle
+        # print self.upperCropValue
+        # print self.calibrationAngle
  
         #Create trackbars for some parametersrosro
         #cv2.namedWindow('keypoints',cv2.WINDOW_NORMAL)
@@ -115,7 +118,8 @@ class ImageObjectFilter:
         pass
 
     def getParams(self):
-        """Updates simple blob detector parameters with values on set on the trackbar"""
+        """Updates simple blob detector parameters with values on set on the trackbar.
+        Only used when run with the argument: viz"""
          # Change thresholds                                                   
         self.params.minThreshold = cv2.getTrackbarPos('minThresh','bars')
         self.params.maxThreshold = cv2.getTrackbarPos('maxThresh','bars')
@@ -145,19 +149,8 @@ class ImageObjectFilter:
         # Distance
         self.params.minDistBetweenBlobs = cv2.getTrackbarPos('minDistance','bars')
 
-    # def joinBlobs(self, rgb_blobs, hsv_blobs):
-    #     """"""
-
-    #     blobs = np.array( [ [ blob.pt[0], blob.pt[1], blob.size ] for blob in (rgb_blobs + hsv_blobs) ] )
-    #     dists = cdist( blobs[:,:2],  blobs[:,:2] , 'euclidean')
-    #     thresholds = blobs[:,:,2]
-
-    #     closestInd = np.argmin( dists, 1 )
-    #     connected = dists[ range(blobs), closestInd ] < blobs[ closestInd, 2 ]
-
-
     def detectBlobs(self,rgb_image,hsv_image):
-        """Uses simple blob detector on a smoothed rgb_image, crops away the base of the robot.
+        """Uses simple blob detector on a s-channel from a smoothed rgb_image, crops away the base of the robot.
         Also draws and displays detected blobs if the the module is launched with the argument viz."""
         
         if self.viz:
@@ -205,7 +198,6 @@ class ImageObjectFilter:
         return blobs
 
     def drawCentroidOnImag(self,image,centroid):
-         
          p = (centroid.xp, centroid.yp)
          p = cv2.KeyPoint(centroid.xp,centroid.yp,100,30)
          im = cv2.drawKeypoints(image, 
@@ -216,10 +208,9 @@ class ImageObjectFilter:
          return im 
 
     def detectAndFilter(self, image, centroidsMessage):
-        """Detects blobs and compares them to pcl centroids.  Reposts all objects detected with 
-        features from both pcl and image."""
-        #print "ran"
-
+        """Detects blobs and compares them to pcl centroids image coordinates.  
+        Matches each centroid to it's closest blob and assigns the blob it's features.
+        Reposts all objects detected with features from both pcl and image."""
         try:
             centroidsArray = centroidsMessage
             rgb_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
@@ -244,7 +235,7 @@ class ImageObjectFilter:
             im_with_keypoints = cv2.drawKeypoints(rgb_image,
                                                   blobs,
                                                   np.array([]),
-                                                  (255,0,0),
+                                                  (255,0,255),
                                                   cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             self.blobImage_pub.publish(self.bridge.cv2_to_imgmsg(im_with_keypoints.astype('uint8'), "bgr8"))
             
@@ -260,11 +251,17 @@ class ImageObjectFilter:
         boundingBoxes = [ self.getBoundingBox(blob, hsv_image, self.boundingBoxScale) for blob in blobs ]
         features = [ self.extractColorFeature(box) for box in boundingBoxes ]
         relativeCoordinates = [ self.estimateRelativeCoordinates( blob ) for blob in blobs ]
+
+        # Convert the image to be used as a snapshot of the object
+        rosimage = self.bridge.cv2_to_imgmsg(rgb_image.astype('uint8'), "bgr8")
+
+        # Construct the message to be sent with the objects
         objectArray.data = [ self.createCoordinate( blobs[i], relativeCoordinates[i], features[i] ) for  i in range( nrBlobs ) ]
+        objectArray.moneyshot = rosimage
 
         # reformat the data as arrays
         centroids = np.array( [ [ c.x, c.y, c.z, c.xp, c.yp ] for c in centroidsArray.data ] )
-        blobs =     np.array( [ [ blob.pt[0], blob.pt[1] + self.upperCropValue , blob.size ] for blob in blobs ] )
+        blobs =     np.array( [ [ blob.pt[0], blob.pt[1] + self.upperCropValue, blob.size ] for blob in blobs ] )
 
         # If a centroid lies within a blob we regard it as an object and filter debris away
         if nrCentroids > 0:
@@ -277,7 +274,9 @@ class ImageObjectFilter:
                     closest = closestInd[i]
                     objectArray.data[closest].features.vfh = centroidsArray.data[i].features.vfh
                     objectArray.data[closest].hull = centroidsArray.data[i].hull
-
+                    objectArray.data[closest].x = centroidsArray.data[i].x
+                    objectArray.data[closest].y = centroidsArray.data[i].y
+        print "post"
         self.ugo_CoordinateArray_pub.publish( objectArray )
 
     def getBoundingBox(self, point, image, scale = 1.0):
@@ -288,13 +287,10 @@ class ImageObjectFilter:
         minr = int(max(0,point.pt[1] - size))
         maxr = int(min(480,minr + 2*size))
 
-        #cv2.imshow("d",image[ minr:maxr, minc:maxc, :])
-
         return image[ minr:maxr, minc:maxc, :]
 
     def extractColorFeature(self, image):
-        """Only hue and sat for now gaussian sampled from the center of the image. This may be unsafe
-        """
+        """Only hue and sat for now sampled uniformly from within the bounding box."""
         # mu = [ m/2 for m in image.shape[:2] ]
         # s = [ m/2 for m in mu ]
         # S = [[s[0] ,0],[0, s[1]]]
@@ -353,7 +349,7 @@ class ImageObjectFilter:
         # The actual X and Y relative coordinates
         X = np.tan(theta) * self.calibrationHeight
         Y = X * np.tan(xAngle)  
-        #print [X,Y]
+
         return [ X, Y ]
 
     def createCoordinate(self, blob, relativeCoordinates, feature):
@@ -364,10 +360,11 @@ class ImageObjectFilter:
         c.z = 0
 
         c.xp = int(blob.pt[0])
-        c.yp = int(blob.pt[1]) + self.upperCropValue
+        c.yp = int(blob.pt[1])
 
         c.features.feature = list(feature[:,0].flatten()) + list(feature[:,1].flatten())
         c.features.splits = [len(c.features.feature)/2] # length will never be odd
+        
         return c
                 
 def main(args):
